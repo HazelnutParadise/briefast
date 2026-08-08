@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "syralit-artifact-dsl": {
+      "source": "HazelnutParadise/syralit",
+      "sourceType": "github",
+      "skillPath": "skills/syralit-artifact-dsl/SKILL.md",
+      "computedHash": "743e036a9ed8ff9322bf1682a2b488fe7fe55c0864a811209538ca35138b08e6"
+    },
+    "syralit-dev": {
+      "source": "HazelnutParadise/syralit",
+      "sourceType": "github",
+      "skillPath": "skills/syralit-dev/SKILL.md",
+      "computedHash": "36ef6a770b81562fa42125250baa807b2871a469a40a66f2a25edae950f7d521"
+    }
+  }
+}
