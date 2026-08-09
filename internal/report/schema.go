@@ -39,15 +39,21 @@ type CallEntry struct {
 }
 
 type Industry struct {
-	Name      string `json:"name"`
+	Name    string          `json:"name"`
+	Events  []IndustryEvent `json:"events"`
+	WatchMD string          `json:"watch_md"`
+}
+
+type IndustryEvent struct {
+	Headline  string `json:"headline"`
 	SummaryMD string `json:"summary_md"`
-	WatchMD   string `json:"watch_md"`
 }
 
 type StockNews struct {
 	Symbol    string   `json:"symbol"`
 	Name      string   `json:"name"`
 	Call      string   `json:"call"`
+	Headline  string   `json:"headline"`
 	SummaryMD string   `json:"summary_md"`
 	WatchMD   string   `json:"watch_md"`
 	Sources   []Source `json:"sources"`
@@ -73,6 +79,17 @@ func (r Report) Validate() []string {
 		errs = append(errs, "watch_md 不得為空")
 	}
 	for i, industry := range r.Industries {
+		if len(industry.Events) == 0 {
+			errs = append(errs, fmt.Sprintf("industries[%d].events 不得為空", i))
+		}
+		for j, event := range industry.Events {
+			if strings.TrimSpace(event.Headline) == "" {
+				errs = append(errs, fmt.Sprintf("industries[%d].events[%d].headline 不得為空", i, j))
+			}
+			if strings.TrimSpace(event.SummaryMD) == "" {
+				errs = append(errs, fmt.Sprintf("industries[%d].events[%d].summary_md 不得為空", i, j))
+			}
+		}
 		if strings.TrimSpace(industry.WatchMD) == "" {
 			errs = append(errs, fmt.Sprintf("industries[%d].watch_md 不得為空", i))
 		}
@@ -81,6 +98,9 @@ func (r Report) Validate() []string {
 	newsSymbols := make(map[string]struct{}, len(r.StockNews))
 	for i, item := range r.StockNews {
 		newsSymbols[item.Symbol] = struct{}{}
+		if strings.TrimSpace(item.Headline) == "" {
+			errs = append(errs, fmt.Sprintf("stock_news[%d].headline 不得為空", i))
+		}
 		if strings.TrimSpace(item.WatchMD) == "" {
 			errs = append(errs, fmt.Sprintf("stock_news[%d].watch_md 不得為空", i))
 		}

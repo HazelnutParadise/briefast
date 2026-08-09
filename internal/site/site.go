@@ -158,7 +158,10 @@ func (s *Site) renderIndustries(industries []report.Industry) string {
 		b.WriteString(`<p>今日無產業摘要。</p>`)
 	}
 	for _, industry := range industries {
-		fmt.Fprintf(&b, `<article class="ind-col"><h3>%s</h3><div class="md">%s</div>`, html.EscapeString(industry.Name), s.markdown(industry.SummaryMD))
+		fmt.Fprintf(&b, `<article class="ind-col"><h3>%s</h3>`, html.EscapeString(industry.Name))
+		for _, event := range industry.Events {
+			fmt.Fprintf(&b, `<div class="industry-event"><h4 class="event-headline">%s</h4><div class="md event-body">%s</div></div>`, html.EscapeString(event.Headline), s.markdown(event.SummaryMD))
+		}
 		b.WriteString(s.renderEntryWatch(industry.WatchMD))
 		b.WriteString(`</article>`)
 	}
@@ -174,6 +177,7 @@ func (s *Site) renderStockNews(news []report.StockNews) string {
 	}
 	for _, item := range news {
 		fmt.Fprintf(&b, `<article class="news-entry" id="n-%s"><div class="news-id"><div class="stock">%s<span class="code">%s</span></div>`, url.PathEscape(item.Symbol), html.EscapeString(item.Name), html.EscapeString(item.Symbol))
+		fmt.Fprintf(&b, `<h3 class="stock-headline">%s</h3>`, html.EscapeString(item.Headline))
 		if label, class, triangle := callPresentation(item.Call); label != "" {
 			fmt.Fprintf(&b, `<span class="tag %s"><span class="tri %s"></span>%s</span>`, class, triangle, label)
 		}

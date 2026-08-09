@@ -14,12 +14,47 @@ func validReport() Report {
 		Calls: Calls{ShortBull: []CallEntry{{
 			Symbol: "2330", Name: "台積電", Reason: "一句理由",
 		}}},
-		Industries: []Industry{{Name: "科技", SummaryMD: "產業摘要", WatchMD: "- 產業觀察"}},
+		Industries: []Industry{{
+			Name: "科技",
+			Events: []IndustryEvent{
+				{Headline: "記憶體漲價改善上游產品組合", SummaryMD: "產業摘要"},
+				{Headline: "AI 追單推升封測產能利用率", SummaryMD: "另一則產業摘要"},
+			},
+			WatchMD: "- 產業觀察",
+		}},
 		StockNews: []StockNews{{
 			Symbol: "2330", Name: "台積電", Call: CallShortBull,
-			SummaryMD: "新聞摘要", WatchMD: "- 個股觀察", Sources: []Source{{Title: "新聞", URL: "https://example.com/news"}},
+			Headline: "先進製程放量支撐短線動能", SummaryMD: "新聞摘要", WatchMD: "- 個股觀察", Sources: []Source{{Title: "新聞", URL: "https://example.com/news"}},
 		}},
 		GeneratedAt: "2026-08-07T07:50:00+08:00",
+	}
+}
+
+func TestReportValidateIndustryEventsAndStockHeadline(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(*Report)
+		want string
+	}{
+		{name: "valid", edit: func(*Report) {}},
+		{name: "empty events", edit: func(r *Report) { r.Industries[0].Events = nil }, want: "industries[0].events"},
+		{name: "event headline missing", edit: func(r *Report) { r.Industries[0].Events[1].Headline = " \t\n" }, want: "industries[0].events[1].headline"},
+		{name: "event summary missing", edit: func(r *Report) { r.Industries[0].Events[1].SummaryMD = " \r\n" }, want: "industries[0].events[1].summary_md"},
+		{name: "stock headline missing", edit: func(r *Report) { r.StockNews[0].Headline = " " }, want: "stock_news[0].headline"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := validReport()
+			tt.edit(&r)
+			errs := strings.Join(r.Validate(), "\n")
+			if tt.want == "" && errs != "" {
+				t.Fatalf("Validate() errors = %q, want none", errs)
+			}
+			if tt.want != "" && !strings.Contains(errs, tt.want) {
+				t.Fatalf("Validate() errors = %q, want substring %q", errs, tt.want)
+			}
+		})
 	}
 }
 
@@ -93,8 +128,11 @@ func TestReportValidateReturnsEveryViolation(t *testing.T) {
 	r := validReport()
 	r.Date = "bad"
 	r.Headline = ""
+	r.Industries[0].Events[1].Headline = ""
+	r.Industries[0].Events[1].SummaryMD = ""
+	r.StockNews[0].Headline = ""
 	errs := r.Validate()
-	if len(errs) != 2 {
-		t.Fatalf("Validate() returned %d errors, want 2: %v", len(errs), errs)
+	if len(errs) != 5 {
+		t.Fatalf("Validate() returned %d errors, want 5: %v", len(errs), errs)
 	}
 }

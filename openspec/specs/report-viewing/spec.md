@@ -172,7 +172,7 @@ tests:
 ---
 ### Requirement: Stock news detail display
 
-The stock news detail section SHALL render one entry per stock_news item: stock name and symbol, a call tag matching its call value, the summary markdown, and its news source links. Entries with call value none SHALL show no tag.
+The stock news detail section SHALL render one entry per stock_news item: stock name and symbol, the entry headline, a call tag matching its call value, the summary markdown, and its news source links. The headline SHALL render in the entry's identification area alongside the stock name rather than inside the body text. Entries with call value none SHALL show no tag.
 
 #### Scenario: Tagged entry
 
@@ -184,47 +184,29 @@ The stock news detail section SHALL render one entry per stock_news item: stock 
 - **WHEN** a stock_news item has call none
 - **THEN** its entry shows the stock name and summary with no call tag
 
+#### Scenario: Headline shown with the stock identity
+
+- **WHEN** a stock_news item carries a headline
+- **THEN** that headline appears in the entry's identification area with the stock name and symbol
+
 
 <!-- @trace
-source: daily-report-site
+source: news-headlines
 updated: 2026-08-09
 code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
   - internal/api/report.go
   - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
+  - skills/daily-brief/SKILL.md
   - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
+  - internal/report/schema.go
+  - internal/api/read.go
+  - main.go
 tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
   - internal/api/report_test.go
+  - internal/report/schema_test.go
+  - internal/api/read_test.go
+  - internal/site/site_test.go
+  - main_test.go
 -->
 
 ---
@@ -375,4 +357,33 @@ tests:
   - internal/site/site_test.go
   - internal/api/read_test.go
   - internal/report/schema_test.go
+-->
+
+---
+### Requirement: Industry event headlines display
+
+The industry news summary section SHALL render each event of a section as its own unit: the event headline as a heading styled distinctly from body text, followed by that event's body markdown. Multiple events within one section SHALL be visually separable from each other. Headline styling SHALL be defined in application code and SHALL NOT be alterable by report payload content.
+
+#### Scenario: Two events in one section
+
+- **WHEN** the 科技 section carries two events
+- **THEN** both event headlines render as headings above their own bodies and the two events read as separate units
+
+<!-- @trace
+source: news-headlines
+updated: 2026-08-09
+code:
+  - internal/api/report.go
+  - internal/site/site.go
+  - skills/daily-brief/SKILL.md
+  - internal/site/styles.go
+  - internal/report/schema.go
+  - internal/api/read.go
+  - main.go
+tests:
+  - internal/api/report_test.go
+  - internal/report/schema_test.go
+  - internal/api/read_test.go
+  - internal/site/site_test.go
+  - main_test.go
 -->

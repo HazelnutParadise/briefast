@@ -33,15 +33,61 @@ func fullReport(date string) report.Report {
 			LongBull:  []report.CallEntry{{Symbol: "1003", Name: "長多股", Reason: "長多理由"}},
 			LongBear:  []report.CallEntry{{Symbol: "1004", Name: "長空股", Reason: "長空理由"}},
 		},
-		Industries: []report.Industry{{Name: "科技", SummaryMD: "- 產業內容", WatchMD: "- 產業觀察內容"}},
+		Industries: []report.Industry{{
+			Name: "科技",
+			Events: []report.IndustryEvent{
+				{Headline: "記憶體漲價改善上游產品組合", SummaryMD: "記憶體產業內容"},
+				{Headline: "AI 追單推升封測產能利用率", SummaryMD: "封測產業內容"},
+			},
+			WatchMD: "- 產業觀察內容",
+		}},
 		StockNews: []report.StockNews{
-			{Symbol: "1001", Name: "短多股", Call: report.CallShortBull, SummaryMD: "短多摘要", WatchMD: "- 短多觀察內容", Sources: []report.Source{{Title: "短多來源", URL: "https://example.com/1"}}},
-			{Symbol: "1002", Name: "短空股", Call: report.CallShortBear, SummaryMD: "短空摘要", WatchMD: "- 短空觀察內容", Sources: []report.Source{{Title: "短空來源", URL: "https://example.com/2"}}},
-			{Symbol: "1003", Name: "長多股", Call: report.CallLongBull, SummaryMD: "長多摘要", WatchMD: "- 長多觀察內容", Sources: []report.Source{{Title: "長多來源", URL: "https://example.com/3"}}},
-			{Symbol: "1004", Name: "長空股", Call: report.CallLongBear, SummaryMD: "長空摘要", WatchMD: "- 長空觀察內容", Sources: []report.Source{{Title: "長空來源", URL: "https://example.com/4"}}},
-			{Symbol: "1005", Name: "中性股", Call: report.CallNone, SummaryMD: "方向不明摘要", WatchMD: "- 中性觀察內容", Sources: []report.Source{{Title: "中性來源", URL: "https://example.com/5"}}},
+			{Symbol: "1001", Name: "短多股", Call: report.CallShortBull, Headline: "擴產提前支撐短線交付", SummaryMD: "短多摘要", WatchMD: "- 短多觀察內容", Sources: []report.Source{{Title: "短多來源", URL: "https://example.com/1"}}},
+			{Symbol: "1002", Name: "短空股", Call: report.CallShortBear, Headline: "成本上升壓縮本季毛利", SummaryMD: "短空摘要", WatchMD: "- 短空觀察內容", Sources: []report.Source{{Title: "短空來源", URL: "https://example.com/2"}}},
+			{Symbol: "1003", Name: "長多股", Call: report.CallLongBull, Headline: "新訂單擴大長期成長能見度", SummaryMD: "長多摘要", WatchMD: "- 長多觀察內容", Sources: []report.Source{{Title: "長多來源", URL: "https://example.com/3"}}},
+			{Symbol: "1004", Name: "長空股", Call: report.CallLongBear, Headline: "需求轉弱拖累長期利用率", SummaryMD: "長空摘要", WatchMD: "- 長空觀察內容", Sources: []report.Source{{Title: "長空來源", URL: "https://example.com/4"}}},
+			{Symbol: "1005", Name: "中性股", Call: report.CallNone, Headline: "合作備忘錄尚待正式訂單確認", SummaryMD: "方向不明摘要", WatchMD: "- 中性觀察內容", Sources: []report.Source{{Title: "中性來源", URL: "https://example.com/5"}}},
 		},
 		GeneratedAt: date + "T07:50:00+08:00",
+	}
+}
+
+func TestStockHeadlineRendersOnlyInIdentificationArea(t *testing.T) {
+	_, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	entry := newsEntry(app.renderStockNews(value.StockNews), "n-1001")
+	bodyAt := strings.Index(entry, `<div class="news-body md">`)
+	if bodyAt < 0 {
+		t.Fatalf("news body missing: %s", entry)
+	}
+	identity, body := entry[:bodyAt], entry[bodyAt:]
+	for _, want := range []string{"短多股", "1001", "擴產提前支撐短線交付", "短期看漲"} {
+		if !strings.Contains(identity, want) {
+			t.Errorf("identification area missing %q: %s", want, identity)
+		}
+	}
+	if strings.Contains(body, "擴產提前支撐短線交付") {
+		t.Errorf("stock headline leaked into body: %s", body)
+	}
+	if stock, headline, tag := strings.Index(identity, "短多股"), strings.Index(identity, "擴產提前支撐短線交付"), strings.Index(identity, "短期看漲"); stock < 0 || headline <= stock || tag <= headline {
+		t.Errorf("stock name, headline, and tag are out of order: %s", identity)
+	}
+}
+
+func TestHeadlineStylesCreateHierarchyWithoutDecorativeBoxes(t *testing.T) {
+	for _, want := range []string{
+		`.event-headline{font-family:var(--serif);font-size:17px;font-weight:700`,
+		`.stock-headline{font-family:var(--serif);font-size:16px;font-weight:600`,
+		`.industry-event{margin:0 0 22px}`,
+	} {
+		if !strings.Contains(styles, want) {
+			t.Errorf("headline hierarchy style missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{".industry-event{border:", ".industry-event{box-shadow:", ".stock-headline{border:", ".stock-headline{box-shadow:"} {
+		if strings.Contains(styles, forbidden) {
+			t.Errorf("headline style adds forbidden decoration %q", forbidden)
+		}
 	}
 }
 
@@ -115,7 +161,7 @@ func TestCallsColorsContentAndNeutralNewsWithoutTag(t *testing.T) {
 	at := sy.NewAppTest(app.Home)
 	at.Run()
 	got := renderedHTML(t, at)
-	for _, want := range []string{"短期看漲", "短期看跌", "長期看好・可留意", "長期看壞・不建議", "短多股", "1001", "短多理由", "科技", "產業內容", "短多來源"} {
+	for _, want := range []string{"短期看漲", "短期看跌", "長期看好・可留意", "長期看壞・不建議", "短多股", "1001", "短多理由", "科技", "記憶體產業內容", "封測產業內容", "短多來源"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("rendered report missing %q", want)
 		}
@@ -132,6 +178,44 @@ func TestCallsColorsContentAndNeutralNewsWithoutTag(t *testing.T) {
 	if strings.Contains(neutral, `class="tag`) || !strings.Contains(neutral, "方向不明摘要") {
 		t.Fatalf("neutral entry has a tag or lacks summary: %s", neutral)
 	}
+}
+
+func TestIndustryEventsRenderAsSeparateUnits(t *testing.T) {
+	_, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	got := app.renderIndustries(value.Industries)
+	if count := strings.Count(got, `class="industry-event"`); count != 2 {
+		t.Fatalf("industry event units = %d, want 2: %s", count, got)
+	}
+
+	for _, want := range []struct {
+		headline string
+		body     string
+	}{
+		{headline: "記憶體漲價改善上游產品組合", body: "記憶體產業內容"},
+		{headline: "AI 追單推升封測產能利用率", body: "封測產業內容"},
+	} {
+		unit := industryEvent(got, want.headline)
+		if unit == "" || !strings.Contains(unit, want.body) || strings.Index(unit, want.headline) > strings.Index(unit, want.body) {
+			t.Errorf("event %q does not render above its own body %q: %s", want.headline, want.body, unit)
+		}
+	}
+}
+
+func industryEvent(got, headline string) string {
+	headlineAt := strings.Index(got, headline)
+	if headlineAt < 0 {
+		return ""
+	}
+	start := strings.LastIndex(got[:headlineAt], `<div class="industry-event">`)
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(got[headlineAt:], `</div></div>`)
+	if end < 0 {
+		return ""
+	}
+	return got[start : headlineAt+end+len(`</div></div>`)]
 }
 
 func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {

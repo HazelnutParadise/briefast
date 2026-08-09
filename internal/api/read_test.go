@@ -68,11 +68,14 @@ func TestReadReturnsStoredReport(t *testing.T) {
 	if got.Date != want.Date || got.Headline != want.Headline {
 		t.Fatalf("報告基本欄位不符: %+v", got)
 	}
-	if len(got.Industries) != 1 || got.Industries[0].WatchMD != want.Industries[0].WatchMD {
-		t.Fatalf("industries watch_md 未原樣回傳: %+v", got.Industries)
+	if len(got.Industries) != 1 || len(got.Industries[0].Events) != 2 ||
+		got.Industries[0].Events[1] != want.Industries[0].Events[1] ||
+		got.Industries[0].WatchMD != want.Industries[0].WatchMD {
+		t.Fatalf("industries events 或 watch_md 未原樣回傳: %+v", got.Industries)
 	}
-	if len(got.StockNews) != 1 || got.StockNews[0].WatchMD != want.StockNews[0].WatchMD {
-		t.Fatalf("stock_news watch_md 未原樣回傳: %+v", got.StockNews)
+	if len(got.StockNews) != 1 || got.StockNews[0].Headline != want.StockNews[0].Headline ||
+		got.StockNews[0].WatchMD != want.StockNews[0].WatchMD {
+		t.Fatalf("stock_news headline 或 watch_md 未原樣回傳: %+v", got.StockNews)
 	}
 	if n := countLogsWithAction(t, s, "read_rejected_auth"); n != 0 {
 		t.Fatalf("成功讀取不應留下拒絕紀錄, got %d", n)
