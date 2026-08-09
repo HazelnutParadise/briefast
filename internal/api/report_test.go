@@ -36,9 +36,10 @@ func setupHandler(t *testing.T) (*store.Store, store.APIKey, *countNotifier, htt
 func apiReport() report.Report {
 	return report.Report{
 		Date: "2026-08-07", Headline: "原始標題", OverviewMD: "總覽", WatchMD: "觀察",
-		Calls: report.Calls{ShortBull: []report.CallEntry{{Symbol: "2330", Name: "台積電", Reason: "理由"}}},
+		Calls:      report.Calls{ShortBull: []report.CallEntry{{Symbol: "2330", Name: "台積電", Reason: "理由"}}},
+		Industries: []report.Industry{{Name: "科技", SummaryMD: "產業摘要", WatchMD: "- 產業觀察"}},
 		StockNews: []report.StockNews{{Symbol: "2330", Name: "台積電", Call: report.CallShortBull,
-			SummaryMD: "摘要", Sources: []report.Source{{Title: "來源", URL: "https://example.com"}}}},
+			SummaryMD: "摘要", WatchMD: "- 個股觀察", Sources: []report.Source{{Title: "來源", URL: "https://example.com"}}}},
 		GeneratedAt: "2026-08-07T07:50:00+08:00",
 	}
 }
@@ -105,6 +106,47 @@ func TestReportHandlerRejectsEverySchemaErrorAtomically(t *testing.T) {
 	logs, _ := s.ListUpdateLogs(context.Background(), 10)
 	if len(logs) != 1 || logs[0].Action != "ingest_rejected_schema" || !strings.Contains(logs[0].Detail, "headline") {
 		t.Fatalf("logs = %+v", logs)
+	}
+}
+
+func TestReportHandlerRejectsMissingEntryWatchMDAtomically(t *testing.T) {
+	s, key, notifier, handler := setupHandler(t)
+	payload := make(map[string]any)
+	encoded, err := json.Marshal(apiReport())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatal(err)
+	}
+	industries := payload["industries"].([]any)
+	industries[0].(map[string]any)["watch_md"] = " \t\n"
+	stockNews := payload["stock_news"].([]any)
+	delete(stockNews[0].(map[string]any), "watch_md")
+
+	w := request(t, handler, key.Token, payload)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	var response struct {
+		OK     bool     `json:"ok"`
+		Errors []string `json:"errors"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v; body = %s", err, w.Body.String())
+	}
+	joinedErrors := strings.Join(response.Errors, "\n")
+	if response.OK || len(response.Errors) != 2 || !strings.Contains(joinedErrors, "industries[0].watch_md") || !strings.Contains(joinedErrors, "stock_news[0].watch_md") {
+		t.Fatalf("response = %+v", response)
+	}
+	count, err := s.CountReports(context.Background())
+	if err != nil || count != 0 || notifier.count != 0 {
+		t.Fatalf("reports = %d, notifications = %d, err = %v", count, notifier.count, err)
+	}
+	logs, err := s.ListUpdateLogs(context.Background(), 10)
+	if err != nil || len(logs) != 1 || logs[0].Action != "ingest_rejected_schema" ||
+		!strings.Contains(logs[0].Detail, "industries[0].watch_md") || !strings.Contains(logs[0].Detail, "stock_news[0].watch_md") {
+		t.Fatalf("logs = %+v, err = %v", logs, err)
 	}
 }
 

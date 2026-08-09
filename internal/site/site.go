@@ -158,7 +158,9 @@ func (s *Site) renderIndustries(industries []report.Industry) string {
 		b.WriteString(`<p>今日無產業摘要。</p>`)
 	}
 	for _, industry := range industries {
-		fmt.Fprintf(&b, `<article class="ind-col"><h3>%s</h3><div class="md">%s</div></article>`, html.EscapeString(industry.Name), s.markdown(industry.SummaryMD))
+		fmt.Fprintf(&b, `<article class="ind-col"><h3>%s</h3><div class="md">%s</div>`, html.EscapeString(industry.Name), s.markdown(industry.SummaryMD))
+		b.WriteString(s.renderEntryWatch(industry.WatchMD))
+		b.WriteString(`</article>`)
 	}
 	b.WriteString(`</div></section>`)
 	return b.String()
@@ -177,6 +179,7 @@ func (s *Site) renderStockNews(news []report.StockNews) string {
 		}
 		b.WriteString(`</div><div class="news-body md">`)
 		b.WriteString(s.markdown(item.SummaryMD))
+		b.WriteString(s.renderEntryWatch(item.WatchMD))
 		if len(item.Sources) > 0 {
 			b.WriteString(`<div class="srcs"><span class="lbl">來源</span>`)
 			for _, source := range item.Sources {
@@ -192,6 +195,13 @@ func (s *Site) renderStockNews(news []report.StockNews) string {
 	}
 	b.WriteString(`</div></section>`)
 	return b.String()
+}
+
+func (s *Site) renderEntryWatch(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return `<div class="entry-watch"><span class="entry-watch-label">觀察重點</span><div class="md">` + s.markdown(value) + `</div></div>`
 }
 
 func callPresentation(call string) (label, class, triangle string) {

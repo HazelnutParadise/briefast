@@ -41,6 +41,7 @@ type CallEntry struct {
 type Industry struct {
 	Name      string `json:"name"`
 	SummaryMD string `json:"summary_md"`
+	WatchMD   string `json:"watch_md"`
 }
 
 type StockNews struct {
@@ -48,6 +49,7 @@ type StockNews struct {
 	Name      string   `json:"name"`
 	Call      string   `json:"call"`
 	SummaryMD string   `json:"summary_md"`
+	WatchMD   string   `json:"watch_md"`
 	Sources   []Source `json:"sources"`
 }
 
@@ -70,10 +72,18 @@ func (r Report) Validate() []string {
 	if strings.TrimSpace(r.WatchMD) == "" {
 		errs = append(errs, "watch_md 不得為空")
 	}
+	for i, industry := range r.Industries {
+		if strings.TrimSpace(industry.WatchMD) == "" {
+			errs = append(errs, fmt.Sprintf("industries[%d].watch_md 不得為空", i))
+		}
+	}
 
 	newsSymbols := make(map[string]struct{}, len(r.StockNews))
 	for i, item := range r.StockNews {
 		newsSymbols[item.Symbol] = struct{}{}
+		if strings.TrimSpace(item.WatchMD) == "" {
+			errs = append(errs, fmt.Sprintf("stock_news[%d].watch_md 不得為空", i))
+		}
 		if !validCall(item.Call) {
 			errs = append(errs, fmt.Sprintf("stock_news[%d].call 必須是 short_bull、short_bear、long_bull、long_bear 或 none", i))
 		}

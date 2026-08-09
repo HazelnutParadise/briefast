@@ -79,6 +79,10 @@ func (h *ReportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReportHandler) authenticate(r *http.Request) (store.APIKey, bool, error) {
+	return authenticate(h.store, r)
+}
+
+func authenticate(s *store.Store, r *http.Request) (store.APIKey, bool, error) {
 	header := r.Header.Get("Authorization")
 	const prefix = "Bearer "
 	if !strings.HasPrefix(header, prefix) || strings.TrimSpace(strings.TrimPrefix(header, prefix)) == "" {
@@ -88,7 +92,7 @@ func (h *ReportHandler) authenticate(r *http.Request) (store.APIKey, bool, error
 	if strings.ContainsAny(token, " \t\r\n") {
 		return store.APIKey{}, false, nil
 	}
-	key, err := h.store.APIKeyByToken(r.Context(), token)
+	key, err := s.APIKeyByToken(r.Context(), token)
 	if errors.Is(err, store.ErrNotFound) {
 		return store.APIKey{}, false, nil
 	}

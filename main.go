@@ -48,6 +48,7 @@ func newHandler(s *store.Store) http.Handler {
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/report", briefapi.NewReportHandler(s, public))
+	mux.Handle("/api/report/{date}", briefapi.NewReadHandler(s))
 	mux.Handle("/", home)
 	mux.Handle("/history/", http.StripPrefix("/history", history))
 	mux.Handle("/admin/", http.StripPrefix("/admin", adminHandler))

@@ -14,12 +14,42 @@ func validReport() Report {
 		Calls: Calls{ShortBull: []CallEntry{{
 			Symbol: "2330", Name: "台積電", Reason: "一句理由",
 		}}},
-		Industries: []Industry{{Name: "半導體", SummaryMD: "產業摘要"}},
+		Industries: []Industry{{Name: "科技", SummaryMD: "產業摘要", WatchMD: "- 產業觀察"}},
 		StockNews: []StockNews{{
 			Symbol: "2330", Name: "台積電", Call: CallShortBull,
-			SummaryMD: "新聞摘要", Sources: []Source{{Title: "新聞", URL: "https://example.com/news"}},
+			SummaryMD: "新聞摘要", WatchMD: "- 個股觀察", Sources: []Source{{Title: "新聞", URL: "https://example.com/news"}},
 		}},
 		GeneratedAt: "2026-08-07T07:50:00+08:00",
+	}
+}
+
+func TestReportValidateEntryWatchMD(t *testing.T) {
+	tests := []struct {
+		name     string
+		industry string
+		stock    string
+		want     []string
+	}{
+		{name: "valid", industry: "- 產業觀察", stock: "- 個股觀察"},
+		{name: "missing fields", want: []string{"industries[0].watch_md", "stock_news[0].watch_md"}},
+		{name: "whitespace fields", industry: " \t\n", stock: " \r\n", want: []string{"industries[0].watch_md", "stock_news[0].watch_md"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := validReport()
+			r.Industries[0].WatchMD = tt.industry
+			r.StockNews[0].WatchMD = tt.stock
+			errs := strings.Join(r.Validate(), "\n")
+			if len(tt.want) == 0 && errs != "" {
+				t.Fatalf("Validate() errors = %q, want none", errs)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(errs, want) {
+					t.Errorf("Validate() errors = %q, want substring %q", errs, want)
+				}
+			}
+		})
 	}
 }
 

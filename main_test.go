@@ -39,4 +39,19 @@ func TestCustomMuxMountsSyralitPagesAndReportAPI(t *testing.T) {
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("GET /api/report status = %d", w.Code)
 	}
+
+	// 唯讀端點需 Bearer key，未帶 key 應為 401 而非落到首頁或 404。
+	req = httptest.NewRequest(http.MethodGet, "/api/report/2026-08-07", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /api/report/{date} status = %d", w.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/report/2026-08-07", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST /api/report/{date} status = %d", w.Code)
+	}
 }

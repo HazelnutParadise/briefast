@@ -33,13 +33,13 @@ func fullReport(date string) report.Report {
 			LongBull:  []report.CallEntry{{Symbol: "1003", Name: "長多股", Reason: "長多理由"}},
 			LongBear:  []report.CallEntry{{Symbol: "1004", Name: "長空股", Reason: "長空理由"}},
 		},
-		Industries: []report.Industry{{Name: "半導體", SummaryMD: "- 產業內容"}},
+		Industries: []report.Industry{{Name: "科技", SummaryMD: "- 產業內容", WatchMD: "- 產業觀察內容"}},
 		StockNews: []report.StockNews{
-			{Symbol: "1001", Name: "短多股", Call: report.CallShortBull, SummaryMD: "短多摘要", Sources: []report.Source{{Title: "短多來源", URL: "https://example.com/1"}}},
-			{Symbol: "1002", Name: "短空股", Call: report.CallShortBear, SummaryMD: "短空摘要", Sources: []report.Source{{Title: "短空來源", URL: "https://example.com/2"}}},
-			{Symbol: "1003", Name: "長多股", Call: report.CallLongBull, SummaryMD: "長多摘要", Sources: []report.Source{{Title: "長多來源", URL: "https://example.com/3"}}},
-			{Symbol: "1004", Name: "長空股", Call: report.CallLongBear, SummaryMD: "長空摘要", Sources: []report.Source{{Title: "長空來源", URL: "https://example.com/4"}}},
-			{Symbol: "1005", Name: "中性股", Call: report.CallNone, SummaryMD: "方向不明摘要", Sources: []report.Source{{Title: "中性來源", URL: "https://example.com/5"}}},
+			{Symbol: "1001", Name: "短多股", Call: report.CallShortBull, SummaryMD: "短多摘要", WatchMD: "- 短多觀察內容", Sources: []report.Source{{Title: "短多來源", URL: "https://example.com/1"}}},
+			{Symbol: "1002", Name: "短空股", Call: report.CallShortBear, SummaryMD: "短空摘要", WatchMD: "- 短空觀察內容", Sources: []report.Source{{Title: "短空來源", URL: "https://example.com/2"}}},
+			{Symbol: "1003", Name: "長多股", Call: report.CallLongBull, SummaryMD: "長多摘要", WatchMD: "- 長多觀察內容", Sources: []report.Source{{Title: "長多來源", URL: "https://example.com/3"}}},
+			{Symbol: "1004", Name: "長空股", Call: report.CallLongBear, SummaryMD: "長空摘要", WatchMD: "- 長空觀察內容", Sources: []report.Source{{Title: "長空來源", URL: "https://example.com/4"}}},
+			{Symbol: "1005", Name: "中性股", Call: report.CallNone, SummaryMD: "方向不明摘要", WatchMD: "- 中性觀察內容", Sources: []report.Source{{Title: "中性來源", URL: "https://example.com/5"}}},
 		},
 		GeneratedAt: date + "T07:50:00+08:00",
 	}
@@ -115,7 +115,7 @@ func TestCallsColorsContentAndNeutralNewsWithoutTag(t *testing.T) {
 	at := sy.NewAppTest(app.Home)
 	at.Run()
 	got := renderedHTML(t, at)
-	for _, want := range []string{"短期看漲", "短期看跌", "長期看好・可留意", "長期看壞・不建議", "短多股", "1001", "短多理由", "半導體", "產業內容", "短多來源"} {
+	for _, want := range []string{"短期看漲", "短期看跌", "長期看好・可留意", "長期看壞・不建議", "短多股", "1001", "短多理由", "科技", "產業內容", "短多來源"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("rendered report missing %q", want)
 		}
@@ -131,6 +131,41 @@ func TestCallsColorsContentAndNeutralNewsWithoutTag(t *testing.T) {
 	neutral := got[neutralStart : neutralStart+neutralEnd]
 	if strings.Contains(neutral, `class="tag`) || !strings.Contains(neutral, "方向不明摘要") {
 		t.Fatalf("neutral entry has a tag or lacks summary: %s", neutral)
+	}
+}
+
+func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
+	_, app := setupSite(t)
+	current := fullReport("2026-08-07")
+	got := app.renderReport(&current, navToHistory)
+	if count := strings.Count(got, `class="entry-watch"`); count != 6 {
+		t.Fatalf("entry watch blocks = %d, want 6", count)
+	}
+	industryStart := strings.Index(got, `<article class="ind-col">`)
+	if industryStart < 0 {
+		t.Fatal("industry entry missing")
+	}
+	industryEnd := strings.Index(got[industryStart:], `</article>`)
+	if industryEnd < 0 {
+		t.Fatal("industry entry closing tag missing")
+	}
+	industry := got[industryStart : industryStart+industryEnd]
+	if summary, label, watch := strings.Index(industry, "產業內容"), strings.Index(industry, "觀察重點"), strings.Index(industry, "產業觀察內容"); summary < 0 || label <= summary || watch <= label {
+		t.Fatalf("industry watch is missing or out of order: %s", industry)
+	}
+	stock := newsEntry(got, "n-1001")
+	if summary, label, watch := strings.Index(stock, "短多摘要"), strings.Index(stock, "觀察重點"), strings.Index(stock, "短多觀察內容"); summary < 0 || label <= summary || watch <= label {
+		t.Fatalf("stock watch is missing or out of order: %s", stock)
+	}
+
+	legacy := fullReport("2026-08-06")
+	legacy.Industries[0].WatchMD = " \t\n"
+	for i := range legacy.StockNews {
+		legacy.StockNews[i].WatchMD = ""
+	}
+	legacyHTML := app.renderReport(&legacy, navToHistory)
+	if strings.Contains(legacyHTML, `class="entry-watch"`) || strings.Contains(legacyHTML, "觀察重點") {
+		t.Fatalf("legacy report rendered an entry watch placeholder: %s", legacyHTML)
 	}
 }
 
