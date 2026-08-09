@@ -1,2 +1,15 @@
+# Runtime configuration and secrets
+syralit.toml
+.env
+
+# Persistent SQLite data
+data/
+*.db-shm
+*.db-wal
+
+# Local build outputs
+/briefast
+coverage.out
+.DS_Store
 .spectra/
 openspec/.vector-search.db*

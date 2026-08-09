@@ -1,0 +1,23 @@
+services:
+  briefast:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BRIEFAST_PORT:-8600}:8600"
+    environment:
+      BRIEFAST_ADMIN_PASSWORD: "${BRIEFAST_ADMIN_PASSWORD:-}"
+      BRIEFAST_DB_PATH: /app/data/briefast.db
+    volumes:
+      - briefast-data:/app/data
+      - ${BRIEFAST_CONFIG:-./syralit.toml.example}:/app/syralit.toml:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8600/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  briefast-data:

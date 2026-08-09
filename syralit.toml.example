@@ -1,0 +1,38 @@
+# Briefast runtime configuration. Copy this file to syralit.toml for local use.
+# Docker Compose mounts this example by default; set BRIEFAST_CONFIG=./syralit.toml
+# to mount the private copy instead.
+title = "Briefast｜每日產業與股市報告"
+host = "0.0.0.0"
+port = 8600
+
+[theme]
+mode = "system"
+accent = "#990F3D"
+background_color = "#F9F1E7"
+secondary_background_color = "#F9F1E7"
+text_color = "#33302E"
+border_color = "#E0D8CA"
+link_color = "#0D7680"
+radius = "0px"
+button_radius = "0px"
+font = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif'
+heading_font = '"Noto Serif TC", "Songti TC", "PMingLiU", serif'
+red_color = "#990F3D"
+red_background_color = "#F2DCE2"
+green_color = "#1E6A45"
+green_background_color = "#DFEBE0"
+base_font_size = 15
+show_widget_border = true
+show_sidebar_border = false
+
+[server]
+max_upload_size_mb = 2
+
+[i18n]
+connecting = "連線中…"
+loading = "載入中…"
+
+[secrets]
+# Uncomment in the private syralit.toml, or set the environment variable with
+# the same name. Do not commit the private file.
+# BRIEFAST_ADMIN_PASSWORD = "replace-with-a-long-random-password"

@@ -1,6 +1,6 @@
 # Briefast
 
-每日產業與股市新聞報告網站。新聞由 AI agent（Claude Cowork）每天抓取並整理成報告，透過 Syralit 的 Artifact API 更新到網站畫布上；打開網頁就能看到當天的產業動態與股市重點。
+每日產業與股市新聞報告網站。Claude Cowork 在開盤前蒐集公開新聞、判讀個股多空並推送完整 JSON；Syralit 網站以固定的規線報紙版面顯示最新報告與歷史報告。
 
 ## 運作方式
 
@@ -8,21 +8,106 @@
 flowchart LR
     A[Claude Cowork<br>每日排程] --> B[爬取產業與<br>股市新聞]
     B --> C[整理成每日報告]
-    C -->|Artifact DSL<br>HTTP API| D[Syralit 網站]
-    D --> E[Artifact Canvas<br>呈現報告]
+    C -->|完整報告 JSON<br>POST /api/report| D[Syralit 網站]
+    D --> E[(SQLite)]
+    D --> F[首頁與歷史頁]
 ```
 
-- **網站**：以 [Syralit](https://github.com/HazelnutParadise/syralit)（Go 的互動式資料應用框架）打造，內嵌 Artifact Canvas，只接受帶驗證的 agent 更新。
-- **每日流程**：repo 內附給 Cowork 執行的流程 skills，定義每天「爬新聞 → 整理 → 產生 Artifact DSL → 更新網站」的步驟。
-- **部署**：Docker Compose。
+- **前台**：`/` 顯示最新報告，`/history/` 每頁列出 10 份歷史報告並可檢視指定日期。
+- **後台**：`/admin/` 以管理員密碼保護，可建立、完整檢視與撤銷 API key，並查看所有成功與拒絕紀錄。
+- **接收 API**：`POST /api/report` 每次查驗 Bearer key，驗證整份 JSON 後以日期為鍵原子 upsert。
+- **持久層**：SQLite `data/briefast.db`，啟動時自動套用 migration，啟用 WAL 與 5 秒 busy timeout。
+- **即時更新**：成功 ingest 後透過 `sy.Shared` 讓已連線頁面 rerun。
 
-## 專案狀態
+網站不使用 Artifact Canvas 或 Artifact DSL。版面與紅漲綠跌語意由程式固定，agent 不能改變 UI 結構。
 
-初始化中，網站程式與每日流程 skills 尚未建立。目前 repo 內容：
+## 報告 JSON
 
-| 路徑 | 說明 |
-|---|---|
-| `.claude/skills/`、`.agents/skills/` | Syralit 開發與 Artifact DSL 兩個 skills，自 [HazelnutParadise/syralit](https://github.com/HazelnutParadise/syralit) 安裝，由 `skills-lock.json` 追蹤 |
+```json
+{
+  "date": "2026-08-07",
+  "headline": "美股收紅開盤氣氛偏多，看漲：台積電、緯創",
+  "overview_md": "盤前總覽 markdown",
+  "watch_md": "- 今日觀察 markdown 條列",
+  "calls": {
+    "short_bull": [{"symbol": "2330", "name": "台積電", "reason": "一句理由"}],
+    "short_bear": [],
+    "long_bull": [],
+    "long_bear": []
+  },
+  "industries": [{"name": "半導體", "summary_md": "- 該產業要聞"}],
+  "stock_news": [
+    {
+      "symbol": "2330",
+      "name": "台積電",
+      "call": "short_bull",
+      "summary_md": "摘要段落，可含列點",
+      "sources": [{"title": "新聞標題", "url": "https://example.com/news"}]
+    }
+  ],
+  "generated_at": "2026-08-07T07:50:00+08:00"
+}
+```
+
+`stock_news[].call` 只接受 `short_bull`、`short_bear`、`long_bull`、`long_bear`、`none`。日期必須是有效的 `YYYY-MM-DD`；`headline`、`overview_md`、`watch_md` 不得為空；每個 source 必須有 URL；四個 calls 清單中的每個 symbol 必須在 `stock_news` 有對應條目。`none` 代表有重大新聞但方向不明，不得放進 calls 清單，前台也不顯示多空標籤。
+
+呼叫範例：
+
+```bash
+curl --fail-with-body \
+  -H "Authorization: Bearer ${BRIEFAST_API_KEY}" \
+  -H "Content-Type: application/json" \
+  --data-binary @report.json \
+  "${BRIEFAST_URL%/}/api/report"
+```
+
+成功回 `200 {"ok":true,"date":"2026-08-07"}`。Schema 錯誤回 400 與完整 `errors` 陣列，無效或已撤銷 key 回 401；兩種拒絕都會寫入 `update_log`，不會寫入報告。
+
+## 本機開發
+
+需求：Go 1.25.11 以上。
+
+```bash
+cp syralit.toml.example syralit.toml
+# 編輯 syralit.toml，設定 [secrets].BRIEFAST_ADMIN_PASSWORD
+go test ./...
+go run .
+```
+
+預設網址是 <http://localhost:8600/>，資料庫是 `data/briefast.db`。也可不建立私密設定檔，改用環境變數：
+
+```bash
+BRIEFAST_ADMIN_PASSWORD='replace-me' go run .
+```
+
+管理員密碼未設定時，公開頁與 API 仍可服務，但後台會拒絕登入並顯示設定錯誤。API key 依產品需求明文存於 SQLite，請限制 `data/` 或 Docker volume 的存取權限。
+
+## Docker Compose 部署
+
+```bash
+cp syralit.toml.example syralit.toml
+# 在 syralit.toml 填入管理員密碼
+BRIEFAST_CONFIG=./syralit.toml docker compose up -d --build
+```
+
+也可以直接注入環境變數：
+
+```bash
+BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --build
+```
+
+`BRIEFAST_PORT` 是主機對外 port，容器內固定使用 8600。`briefast-data` named volume 掛在 `/app/data`，所以重建或重啟容器不會刪除 reports、API keys 或 update log。網域與 HTTPS 應由外部反向代理處理。
+
+## 每日流程 skill
+
+`skills/daily-brief/SKILL.md` 定義完整四步驟與錯誤處理。執行前必須設定：
+
+```bash
+export BRIEFAST_URL='https://briefast.example.com'
+export BRIEFAST_API_KEY='brf_...'
+```
+
+任一變數缺少時，skill 會在 POST 前停止。非 200 回應會帶回 response body；5xx 只重試一次，400 則依 `errors` 修正 payload，無法修正時原文回報。
 
 ## License
 

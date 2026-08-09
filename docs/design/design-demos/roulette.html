@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Briefast｜每日產業與股市報告</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<!--
+  ============================================================
+  Briefast — Dark Editorial（暗色雙色側欄）demo
+  本檔為深色原生主題。另一主題（淺色）token 建議：
+
+  淺色主題 token 建議
+  --bg:          #F5F2EC   紙感米白底（保留刊物感，不用純白）
+  --bg-raised:   #FFFFFF   卡面
+  --line:        #DCD6C8   hairline
+  --heading:     #1B2430   標題墨色
+  --body:        #4A5568   正文
+  --body-soft:   #6B7484   次要文字
+  --accent:      #8C6A1F   暗金（淺底上金色需壓暗以保對比）
+  --bull:        #C43D3D   看漲紅（淺底用飽和深紅）
+  --bull-dim:    rgba(196,61,61,.08)
+  --bear:        #1E7A4F   看跌綠（淺底用深綠）
+  --bear-dim:    rgba(30,122,79,.08)
+  語意方向不變：看漲／看好一律紅系，看跌／看壞一律綠系。
+  ============================================================
+
+  <768px 收合方式：側欄由 sticky 直欄改為靜態頂欄；
+  導航錨點轉為單列橫向捲動；多空對立雙欄疊為單欄（多方在前）；
+  產業卡與歷史列表轉單欄。375px 實測不破版。
+-->
+<style>
+  :root {
+    --bg:        #0A192F;
+    --bg-raised: #112240;
+    --line:      #1E2D4E;
+    --heading:   #CCD6F6;
+    --body:      #A8B2D1;
+    --body-soft: #8892B0;
+    --accent:    #E9B44C;  /* 晨光金：取代原風格螢光青綠，避開紅綠語意 */
+    --bull:      #F97583;  /* 看漲紅（深底調亮的玫瑰紅） */
+    --bull-dim:  rgba(249, 117, 131, .09);
+    --bear:      #6FBF8F;  /* 看跌綠（深底調亮調柔的灰綠） */
+    --bear-dim:  rgba(111, 191, 143, .09);
+    --font-sans: "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Noto Sans TC", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--body);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* 連結 hover 下劃線滑入（本風格 DNA） */
+  .slide-link {
+    position: relative;
+    display: inline-block;
+    transition: color .2s ease;
+  }
+  .slide-link::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: -2px;
+    width: 100%; height: 1px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .25s ease;
+  }
+  .slide-link:hover { color: var(--accent); }
+  .slide-link:hover::after { transform: scaleX(1); }
+
+  /* ============ 版面骨架：左固定側欄＋右滾動主區 ============ */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  /* ============ 側欄 ============ */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 56px 40px 40px 48px;
+    border-right: 1px solid var(--line);
+  }
+  .brand {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    color: var(--heading);
+    line-height: 1.2;
+  }
+  .brand-sub {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: var(--body-soft);
+  }
+
+  /* 日期即報告身分：日刊性母題 */
+  .issue {
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  .issue-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: .18em;
+    color: var(--accent);
+    margin: 0 0 8px;
+  }
+  .issue-date {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: .02em;
+    line-height: 1.15;
+    margin: 0;
+  }
+  .issue-meta {
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: var(--body-soft);
+  }
+
+  /* 今日多空計數：三秒掃到「今天誰多誰空」 */
+  .tally {
+    margin-top: 28px;
+    display: flex;
+    gap: 24px;
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+  .tally div { line-height: 1.4; }
+  .tally .n {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .tally .t {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    letter-spacing: .1em;
+    color: var(--body-soft);
+  }
+  .tally .bull .n { color: var(--bull); }
+  .tally .bear .n { color: var(--bear); }
+  .tally .flat .n { color: var(--body-soft); }
+
+  .side-nav {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .side-nav a {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 7px 0;
+    color: var(--body-soft);
+    font-size: 14px;
+    letter-spacing: .04em;
+  }
+  .side-nav a .no {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: .1em;
+  }
+  .side-nav a .nav-word { position: relative; }
+  .side-nav a .nav-word::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: -2px;
+    width: 100%; height: 1px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .25s ease;
+  }
+  .side-nav a:hover { color: var(--heading); }
+  .side-nav a:hover .nav-word::after { transform: scaleX(1); }
+
+  .side-foot {
+    margin-top: auto;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  .side-foot a {
+    font-size: 14px;
+    color: var(--heading);
+    font-weight: 500;
+  }
+  .side-foot .hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--body-soft);
+  }
+
+  /* ============ 主區 ============ */
+  .main {
+    padding: 56px 72px 48px 64px;
+    min-width: 0;
+  }
+  .section { margin-bottom: 72px; }
+
+  .sec-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sec-head .no {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .12em;
+  }
+  .sec-head h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+  .sec-head::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  /* 01 盤前總覽 */
+  .overview p {
+    margin: 0 0 14px;
+    font-size: 16px;
+    max-width: 62ch;
+  }
+  .overview p.lead {
+    font-size: 18px;
+    color: var(--heading);
+    line-height: 1.8;
+  }
+
+  /* 02 今日觀察 */
+  .watch { margin: 0; padding: 0; list-style: none; max-width: 68ch; }
+  .watch li {
+    display: flex;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+  }
+  .watch li:first-child { border-top: 1px solid var(--line); }
+  .watch li::before {
+    content: "—";
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* 03 個股多空判斷：紅綠對立雙欄 */
+  .calls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .calls-col { background: var(--bg); }
+  .calls-col .col-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 16px 24px;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: .06em;
+  }
+  .calls-col.bull .col-head { color: var(--bull); background: var(--bull-dim); }
+  .calls-col.bear .col-head { color: var(--bear); background: var(--bear-dim); }
+  .col-head .count {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .call {
+    padding: 20px 24px 22px;
+    border-top: 1px solid var(--line);
+  }
+  .call .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .call .glyph { font-size: 13px; }
+  .calls-col.bull .glyph { color: var(--bull); }
+  .calls-col.bear .glyph { color: var(--bear); }
+  .call .name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--heading);
+  }
+  .call .code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--body-soft);
+    letter-spacing: .06em;
+  }
+  .call .horizon {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: .12em;
+    padding: 2px 10px;
+    border: 1px solid var(--line);
+    color: var(--body-soft);
+  }
+  .call .why {
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: var(--body-soft);
+    line-height: 1.7;
+  }
+  .call .more {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  /* 04 產業新聞摘要 */
+  .industries {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .ind-card {
+    background: var(--bg-raised);
+    padding: 22px 26px;
+    border: 1px solid var(--line);
+  }
+  .ind-card h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: .04em;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ind-card ul { margin: 0; padding: 0; list-style: none; }
+  .ind-card li {
+    font-size: 14px;
+    color: var(--body);
+    padding-left: 16px;
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .ind-card li:last-child { margin-bottom: 0; }
+  .ind-card li::before {
+    content: "·";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* 05 個股新聞詳情 */
+  .stock-news { display: flex; flex-direction: column; }
+  .sn-entry {
+    padding: 26px 0 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sn-entry:first-child { border-top: 1px solid var(--line); }
+  .sn-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .sn-head .name {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--heading);
+  }
+  .sn-head .code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--body-soft);
+    letter-spacing: .06em;
+  }
+  .sn-tag {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    padding: 2px 10px;
+    border: 1px solid;
+  }
+  .sn-tag.bull { color: var(--bull); border-color: var(--bull); background: var(--bull-dim); }
+  .sn-tag.bear { color: var(--bear); border-color: var(--bear); background: var(--bear-dim); }
+  .sn-entry p {
+    margin: 0 0 10px;
+    font-size: 15px;
+    max-width: 68ch;
+  }
+  .sn-entry ul {
+    margin: 0 0 10px;
+    padding-left: 18px;
+    font-size: 14px;
+    color: var(--body-soft);
+  }
+  .sn-entry li { margin-bottom: 4px; }
+  .sn-srcs {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--body-soft);
+    letter-spacing: .02em;
+  }
+  .sn-srcs .src-label { color: var(--accent); margin-right: 10px; }
+  .sn-srcs span.s { margin-right: 16px; }
+
+  /* 06 歷史報告 */
+  .hist-note {
+    margin: 0 0 18px;
+    font-size: 14px;
+    color: var(--body-soft);
+  }
+  .hist-list { border-top: 1px solid var(--line); }
+  .hist-item {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .hist-item .d {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--heading);
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .hist-item .t {
+    font-size: 14px;
+    color: var(--body-soft);
+  }
+  .pager {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .pager span {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--body-soft);
+    border: 1px solid var(--line);
+    padding: 3px 12px;
+  }
+  .pager .cur {
+    color: var(--bg);
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* 頁尾免責 */
+  .site-disclaimer {
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+    font-size: 14px;
+    color: var(--body-soft);
+    max-width: 68ch;
+  }
+
+  /* ============ 收合：<960 側欄轉頂欄，<768 內容單欄 ============ */
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 36px 24px 24px;
+    }
+    .issue { margin-top: 24px; padding-top: 18px; }
+    .issue-date { font-size: 26px; }
+    .side-nav {
+      flex-direction: row;
+      overflow-x: auto;
+      gap: 22px;
+      margin-top: 24px;
+      padding-bottom: 4px;
+    }
+    .side-nav a { white-space: nowrap; padding: 4px 0; }
+    .side-foot { margin-top: 20px; padding-top: 16px; }
+    .main { padding: 40px 24px 40px; }
+    .section { margin-bottom: 56px; }
+  }
+  @media (max-width: 768px) {
+    .calls { grid-template-columns: 1fr; }
+    .industries { grid-template-columns: 1fr; }
+    .hist-item { flex-direction: column; gap: 2px; }
+    .overview p.lead { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ============ 左側欄：品牌／日期／導航／多空計數 ============ -->
+  <aside class="sidebar">
+    <h1 class="brand">Briefast</h1>
+    <p class="brand-sub">每日產業與股市報告</p>
+
+    <div class="issue">
+      <p class="issue-label">TODAY</p>
+      <p class="issue-date">2026.08.07</p>
+      <p class="issue-meta">8 月 7 日（四）・開盤前 07:50 更新</p>
+    </div>
+
+    <div class="tally" aria-label="今日多空判斷統計">
+      <div class="bull"><span class="n">3</span><span class="t">看漲・看好</span></div>
+      <div class="bear"><span class="n">2</span><span class="t">看跌・看壞</span></div>
+      <div class="flat"><span class="n">1</span><span class="t">中性</span></div>
+    </div>
+
+    <nav class="side-nav" aria-label="本日報告目錄">
+      <a href="#overview"><span class="no">01</span><span class="nav-word">盤前總覽</span></a>
+      <a href="#watch"><span class="no">02</span><span class="nav-word">今日觀察</span></a>
+      <a href="#calls"><span class="no">03</span><span class="nav-word">個股多空判斷</span></a>
+      <a href="#industries"><span class="no">04</span><span class="nav-word">產業新聞摘要</span></a>
+      <a href="#details"><span class="no">05</span><span class="nav-word">個股新聞詳情</span></a>
+      <a href="#history"><span class="no">06</span><span class="nav-word">歷史報告</span></a>
+    </nav>
+
+    <div class="side-foot">
+      <a class="slide-link" href="#history">歷史報告 →</a>
+      <p class="hint">回看每個交易日的完整報告</p>
+    </div>
+  </aside>
+
+  <!-- ============ 右主區 ============ -->
+  <main class="main">
+
+    <section class="section" id="overview">
+      <div class="sec-head"><span class="no">01</span><h2>盤前總覽</h2></div>
+      <div class="overview">
+        <p class="lead">美股四大指數收紅，那斯達克漲逾 1%，費半在 AI 需求帶動下大漲近 2%，台股今日開盤氣氛偏多。</p>
+        <p>焦點在台積電盤後公布的 7 月營收與晚間美國 CPI 數據；航運族群受運價連三週回落壓抑，短線氣氛保守。</p>
+      </div>
+    </section>
+
+    <section class="section" id="watch">
+      <div class="sec-head"><span class="no">02</span><h2>今日觀察</h2></div>
+      <ul class="watch">
+        <li>台積電盤後公布 7 月營收，關注月增幅是否延續。</li>
+        <li>美國 7 月 CPI 今晚公布，高於預期恐壓抑降息預期。</li>
+        <li>觀察外資期貨淨空單是否持續回補。</li>
+      </ul>
+    </section>
+
+    <section class="section" id="calls">
+      <div class="sec-head"><span class="no">03</span><h2>個股多空判斷</h2></div>
+      <div class="calls">
+        <div class="calls-col bull">
+          <div class="col-head">看漲・看好<span class="count">3 檔</span></div>
+          <div class="call">
+            <div class="row">
+              <span class="glyph">▲</span>
+              <span class="name">台積電</span><span class="code">2330</span>
+              <span class="horizon">短期</span>
+            </div>
+            <p class="why">2 奈米提前放量、外資調升目標價，短線題材與資金面同步轉強。</p>
+            <a class="more slide-link" href="#details">新聞詳情 ↓</a>
+          </div>
+          <div class="call">
+            <div class="row">
+              <span class="glyph">▲</span>
+              <span class="name">緯創</span><span class="code">3231</span>
+              <span class="horizon">短期</span>
+            </div>
+            <p class="why">AI 伺服器 7 月出貨季增五成，短線動能明確。</p>
+            <a class="more slide-link" href="#details">新聞詳情 ↓</a>
+          </div>
+          <div class="call">
+            <div class="row">
+              <span class="glyph">▲</span>
+              <span class="name">台達電</span><span class="code">2308</span>
+              <span class="horizon">長期</span>
+            </div>
+            <p class="why">資料中心電源供應吃緊為結構性趨勢，訂單能見度看到明年。</p>
+            <a class="more slide-link" href="#details">新聞詳情 ↓</a>
+          </div>
+        </div>
+
+        <div class="calls-col bear">
+          <div class="col-head">看跌・看壞<span class="count">2 檔</span></div>
+          <div class="call">
+            <div class="row">
+              <span class="glyph">▼</span>
+              <span class="name">長榮</span><span class="code">2603</span>
+              <span class="horizon">短期</span>
+            </div>
+            <p class="why">運價指數連三週回落，Q3 旺季不旺疑慮發酵。</p>
+            <a class="more slide-link" href="#details">新聞詳情 ↓</a>
+          </div>
+          <div class="call">
+            <div class="row">
+              <span class="glyph">▼</span>
+              <span class="name">某面板股</span><span class="code">****</span>
+              <span class="horizon">長期</span>
+            </div>
+            <p class="why">產業供過於求未解，連兩季展望保守，中期基本面缺乏催化。</p>
+            <a class="more slide-link" href="#details">新聞詳情 ↓</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="industries">
+      <div class="sec-head"><span class="no">04</span><h2>產業新聞摘要</h2></div>
+      <div class="industries">
+        <div class="ind-card">
+          <h3>半導體</h3>
+          <ul>
+            <li>台積電傳 2 奈米提前放量，法人上修下半年資本支出。</li>
+            <li>美系客戶 AI 加速器追單，封測產能吃緊到年底。</li>
+          </ul>
+        </div>
+        <div class="ind-card">
+          <h3>AI／雲端</h3>
+          <ul>
+            <li>四大雲端業者財報齊揚，資料中心資本支出續創新高。</li>
+          </ul>
+        </div>
+        <div class="ind-card">
+          <h3>金融</h3>
+          <ul>
+            <li>市場預期 9 月降息一碼，壽險股評價修復。</li>
+          </ul>
+        </div>
+        <div class="ind-card">
+          <h3>傳產／能源</h3>
+          <ul>
+            <li>航運運價指數連三週回落，Q3 旺季不旺疑慮升溫。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="details">
+      <div class="sec-head"><span class="no">05</span><h2>個股新聞詳情</h2></div>
+      <div class="stock-news">
+
+        <article class="sn-entry">
+          <div class="sn-head">
+            <span class="name">台積電</span><span class="code">2330</span>
+            <span class="sn-tag bull">短期看漲</span>
+          </div>
+          <p>供應鏈傳出 2 奈米製程提前放量，多家外資今晨同步調升目標價至 1,300 元以上。法說會釋出的下半年資本支出上修，被解讀為 AI 需求持續強勁的訊號。</p>
+          <ul>
+            <li>2 奈米良率優於預期，大客戶訂單提前投片。</li>
+            <li>外資圈連兩日合計買超逾 2 萬張。</li>
+          </ul>
+          <div class="sn-srcs"><span class="src-label">來源</span><span class="s">經濟日報〈台積電 2 奈米傳提前放量〉</span><span class="s">工商時報〈外資調升台積電目標價〉</span></div>
+        </article>
+
+        <article class="sn-entry">
+          <div class="sn-head">
+            <span class="name">緯創</span><span class="code">3231</span>
+            <span class="sn-tag bull">短期看漲</span>
+          </div>
+          <p>7 月營收公布，AI 伺服器出貨季增五成，公司法說會表示下半年產能已被客戶預訂一空，並宣布擴建墨西哥廠因應北美需求。</p>
+          <div class="sn-srcs"><span class="src-label">來源</span><span class="s">中央社〈緯創 AI 伺服器出貨報捷〉</span></div>
+        </article>
+
+        <article class="sn-entry">
+          <div class="sn-head">
+            <span class="name">長榮</span><span class="code">2603</span>
+            <span class="sn-tag bear">短期看跌</span>
+          </div>
+          <p>SCFI 運價指數連三週走跌，歐美線報價同步回落。市場原預期的 Q3 傳統旺季拉貨潮至今未出現，法人下修全年獲利預估。</p>
+          <div class="sn-srcs"><span class="src-label">來源</span><span class="s">工商時報〈SCFI 連三週走跌〉</span></div>
+        </article>
+
+        <article class="sn-entry">
+          <div class="sn-head">
+            <span class="name">台達電</span><span class="code">2308</span>
+            <span class="sn-tag bull">長期看好</span>
+          </div>
+          <p>資料中心電力供應吃緊成為 AI 基建的新瓶頸，台達電電源方案訂單能見度看到明年下半年。多家研究機構把電源管理列為未來三年 AI 供應鏈中成長最確定的環節。</p>
+          <div class="sn-srcs"><span class="src-label">來源</span><span class="s">數位時代〈資料中心電力荒〉</span></div>
+        </article>
+
+        <article class="sn-entry">
+          <div class="sn-head">
+            <span class="name">某面板股</span><span class="code">****</span>
+            <span class="sn-tag bear">長期看壞</span>
+          </div>
+          <p>面板報價連續四個月探底，產業供過於求未解。公司連兩季展望保守，中國同業新產能明年開出，中期基本面缺乏催化。</p>
+          <div class="sn-srcs"><span class="src-label">來源</span><span class="s">電子時報〈面板報價續探底〉</span></div>
+        </article>
+
+        <article class="sn-entry">
+          <div class="sn-head">
+            <span class="name">鴻海</span><span class="code">2317</span>
+          </div>
+          <p>宣布與美系車廠簽訂電動車代工合作備忘錄，市場關注但短期營收貢獻有限，長期效益取決於後續正式訂單，方向尚不明朗。</p>
+          <div class="sn-srcs"><span class="src-label">來源</span><span class="s">中央社〈鴻海電動車再下一城〉</span></div>
+        </article>
+
+      </div>
+    </section>
+
+    <section class="section" id="history">
+      <div class="sec-head"><span class="no">06</span><h2>歷史報告</h2></div>
+      <p class="hist-note">點日期進入該天的完整報告，版面同首頁。</p>
+      <div class="hist-list">
+        <div class="hist-item"><a class="d slide-link" href="#history">2026-08-07（四）</a><span class="t">美股收紅開盤氣氛偏多，看漲：台積電、緯創</span></div>
+        <div class="hist-item"><a class="d slide-link" href="#history">2026-08-06（三）</a><span class="t">CPI 前觀望，看跌：航運族群</span></div>
+        <div class="hist-item"><a class="d slide-link" href="#history">2026-08-05（二）</a><span class="t">航運重挫拖累大盤，電子撐盤</span></div>
+        <div class="hist-item"><a class="d slide-link" href="#history">2026-08-04（一）</a><span class="t">美股帶動跳空開高，站回月線</span></div>
+        <div class="hist-item"><a class="d slide-link" href="#history">2026-08-01（五）</a><span class="t">財報週開跑，個股表現分歧</span></div>
+      </div>
+      <div class="pager"><span class="cur">1</span><span>2</span><span>3</span><span>…</span></div>
+    </section>
+
+    <footer class="site-disclaimer">
+      本報告由 AI 自動彙整公開新聞產生，多空判斷為模型觀點，僅供參考，不構成任何投資建議。投資人應自行判斷並承擔風險。
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>

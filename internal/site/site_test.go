@@ -1,0 +1,286 @@
+package site
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/HazelnutParadise/briefast/internal/report"
+	"github.com/HazelnutParadise/briefast/internal/store"
+	sy "github.com/HazelnutParadise/syralit"
+)
+
+func setupSite(t *testing.T) (*store.Store, *Site) {
+	t.Helper()
+	s, err := store.Open(filepath.Join(t.TempDir(), "briefast.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	return s, New(s)
+}
+
+func fullReport(date string) report.Report {
+	return report.Report{
+		Date: date, Headline: "盤前頭條", OverviewMD: "總覽內容", WatchMD: "- 觀察一\n- 觀察二",
+		Calls: report.Calls{
+			ShortBull: []report.CallEntry{{Symbol: "1001", Name: "短多股", Reason: "短多理由"}},
+			ShortBear: []report.CallEntry{{Symbol: "1002", Name: "短空股", Reason: "短空理由"}},
+			LongBull:  []report.CallEntry{{Symbol: "1003", Name: "長多股", Reason: "長多理由"}},
+			LongBear:  []report.CallEntry{{Symbol: "1004", Name: "長空股", Reason: "長空理由"}},
+		},
+		Industries: []report.Industry{{Name: "半導體", SummaryMD: "- 產業內容"}},
+		StockNews: []report.StockNews{
+			{Symbol: "1001", Name: "短多股", Call: report.CallShortBull, SummaryMD: "短多摘要", Sources: []report.Source{{Title: "短多來源", URL: "https://example.com/1"}}},
+			{Symbol: "1002", Name: "短空股", Call: report.CallShortBear, SummaryMD: "短空摘要", Sources: []report.Source{{Title: "短空來源", URL: "https://example.com/2"}}},
+			{Symbol: "1003", Name: "長多股", Call: report.CallLongBull, SummaryMD: "長多摘要", Sources: []report.Source{{Title: "長多來源", URL: "https://example.com/3"}}},
+			{Symbol: "1004", Name: "長空股", Call: report.CallLongBear, SummaryMD: "長空摘要", Sources: []report.Source{{Title: "長空來源", URL: "https://example.com/4"}}},
+			{Symbol: "1005", Name: "中性股", Call: report.CallNone, SummaryMD: "方向不明摘要", Sources: []report.Source{{Title: "中性來源", URL: "https://example.com/5"}}},
+		},
+		GeneratedAt: date + "T07:50:00+08:00",
+	}
+}
+
+func saveReport(t *testing.T, s *store.Store, value report.Report) {
+	t.Helper()
+	payload, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpsertReport(context.Background(), value, payload); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func renderedHTML(t *testing.T, at *sy.AppTest) string {
+	t.Helper()
+	nodes := at.FindAll("html")
+	if len(nodes) != 1 {
+		t.Fatalf("html nodes = %d, want 1", len(nodes))
+	}
+	value, _ := nodes[0].Props["html"].(string)
+	return value
+}
+
+func TestHomeEmptyAndLatestReportFixedSectionOrder(t *testing.T) {
+	s, app := setupSite(t)
+	at := sy.NewAppTest(app.Home)
+	at.Run()
+	if got := renderedHTML(t, at); !strings.Contains(got, "尚無報告") || !strings.Contains(got, Disclaimer) {
+		t.Fatalf("empty page missing state or disclaimer")
+	}
+
+	saveReport(t, s, fullReport("2026-08-06"))
+	latest := fullReport("2026-08-07")
+	latest.Headline = "最新頭條"
+	saveReport(t, s, latest)
+	at.Run()
+	got := renderedHTML(t, at)
+	if !strings.Contains(got, "最新頭條") || !strings.Contains(got, "2026 年 8 月 7 日") || !strings.Contains(got, "07:50 更新") {
+		t.Fatalf("latest report masthead missing: %s", got)
+	}
+	sections := []string{`data-section="overview"`, `data-section="watch"`, `data-section="calls"`, `data-section="industries"`, `data-section="stock-news"`}
+	last := -1
+	for _, section := range sections {
+		index := strings.Index(got, section)
+		if index <= last {
+			t.Fatalf("section %s index = %d after %d", section, index, last)
+		}
+		last = index
+	}
+}
+
+func TestSharedVersionRefreshesOpenHome(t *testing.T) {
+	s, app := setupSite(t)
+	at := sy.NewAppTest(app.Home)
+	at.Run()
+	if !strings.Contains(renderedHTML(t, at), "尚無報告") {
+		t.Fatal("initial empty state missing")
+	}
+	saveReport(t, s, fullReport("2026-08-07"))
+	app.Notify()
+	at.Run()
+	if !strings.Contains(renderedHTML(t, at), "盤前頭條") {
+		t.Fatal("report did not refresh after shared version notification")
+	}
+}
+
+func TestCallsColorsContentAndNeutralNewsWithoutTag(t *testing.T) {
+	s, app := setupSite(t)
+	saveReport(t, s, fullReport("2026-08-07"))
+	at := sy.NewAppTest(app.Home)
+	at.Run()
+	got := renderedHTML(t, at)
+	for _, want := range []string{"短期看漲", "短期看跌", "長期看好・可留意", "長期看壞・不建議", "短多股", "1001", "短多理由", "半導體", "產業內容", "短多來源"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("rendered report missing %q", want)
+		}
+	}
+	if !strings.Contains(got, `.call-col.up .stock{color:var(--up)}`) || !strings.Contains(got, `.call-col.down .stock{color:var(--down)}`) {
+		t.Error("red-up/green-down styles missing")
+	}
+	assertBullishIsRedAndBearishIsGreen(t, got)
+	assertCallsLandInMatchingColumns(t, got)
+	assertStockNewsTags(t, got)
+	neutralStart := strings.Index(got, `id="n-1005"`)
+	neutralEnd := strings.Index(got[neutralStart:], `</article>`)
+	neutral := got[neutralStart : neutralStart+neutralEnd]
+	if strings.Contains(neutral, `class="tag`) || !strings.Contains(neutral, "方向不明摘要") {
+		t.Fatalf("neutral entry has a tag or lacks summary: %s", neutral)
+	}
+}
+
+func TestHistoryPagingOrderingAndHistoricalReport(t *testing.T) {
+	s, app := setupSite(t)
+	for day := 1; day <= 25; day++ {
+		date := fmt.Sprintf("2026-07-%02d", day)
+		r := fullReport(date)
+		r.Headline = "頭條 " + date
+		saveReport(t, s, r)
+	}
+	at := sy.NewAppTest(func() { app.HistoryPage(1, "") })
+	at.Run()
+	got := renderedHTML(t, at)
+	if strings.Count(got, `class="hist-item"`) != 10 || strings.Index(got, "2026-07-25") > strings.Index(got, "2026-07-24") || !strings.Contains(got, `?page=3`) {
+		t.Fatalf("history page 1 ordering or pagination incorrect")
+	}
+
+	page3 := sy.NewAppTest(func() { app.HistoryPage(3, "") })
+	page3.Run()
+	if got := renderedHTML(t, page3); strings.Count(got, `class="hist-item"`) != 5 || !strings.Contains(got, "2026-07-05") || !strings.Contains(got, "2026-07-01") {
+		t.Fatalf("history page 3 incorrect")
+	}
+
+	historical := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-05") })
+	historical.Run()
+	got = renderedHTML(t, historical)
+	if !strings.Contains(got, "頭條 2026-07-05") || !strings.Contains(got, `data-section="stock-news"`) || !strings.Contains(got, Disclaimer) {
+		t.Fatalf("historical report did not use shared report layout")
+	}
+}
+
+// Taiwan market convention: bullish is red, bearish is green, in both themes.
+// Asserting on the hue keeps a token swap from silently inverting the meaning.
+func assertBullishIsRedAndBearishIsGreen(t *testing.T, got string) {
+	t.Helper()
+	for _, token := range []struct {
+		name    string
+		wantHue string
+	}{{"--up", "red"}, {"--down", "green"}} {
+		for _, value := range cssTokenValues(got, token.name) {
+			if hue := dominantHue(value); hue != token.wantHue {
+				t.Errorf("%s = %s reads as %s, want %s", token.name, value, hue, token.wantHue)
+			}
+		}
+	}
+}
+
+// cssTokenValues collects every declared value of a custom property, so both the
+// light and the dark theme block are checked.
+func cssTokenValues(css, name string) []string {
+	var values []string
+	for _, chunk := range strings.Split(css, name+":")[1:] {
+		end := strings.IndexAny(chunk, ";}")
+		if end > 0 {
+			values = append(values, strings.TrimSpace(chunk[:end]))
+		}
+	}
+	return values
+}
+
+func dominantHue(hex string) string {
+	if len(hex) != 7 || hex[0] != '#' {
+		return "unparsed:" + hex
+	}
+	var rgb [3]int64
+	for i := range rgb {
+		v, err := strconv.ParseInt(hex[1+i*2:3+i*2], 16, 32)
+		if err != nil {
+			return "unparsed:" + hex
+		}
+		rgb[i] = v
+	}
+	switch {
+	case rgb[0] > rgb[1]:
+		return "red"
+	case rgb[1] > rgb[0]:
+		return "green"
+	default:
+		return "neutral"
+	}
+}
+
+// Every call must render inside the column matching its direction, so swapping
+// two lists cannot pass unnoticed.
+func assertCallsLandInMatchingColumns(t *testing.T, got string) {
+	t.Helper()
+	columns := map[string]string{}
+	for _, chunk := range strings.Split(got, `<div class="call-col `)[1:] {
+		class, rest, ok := strings.Cut(chunk, `"`)
+		if !ok {
+			continue
+		}
+		title, _, _ := strings.Cut(rest[strings.Index(rest, "</span>")+len("</span>"):], "<span")
+		columns[title] = class + "|" + rest
+	}
+	for _, want := range []struct{ title, class, stock string }{
+		{"短期看漲", "up", "短多股"},
+		{"短期看跌", "down", "短空股"},
+		{"長期看好・可留意", "up", "長多股"},
+		{"長期看壞・不建議", "down", "長空股"},
+	} {
+		column, ok := columns[want.title]
+		if !ok {
+			t.Errorf("column %q missing", want.title)
+			continue
+		}
+		class, body, _ := strings.Cut(column, "|")
+		if class != want.class {
+			t.Errorf("column %q has class %q, want %q", want.title, class, want.class)
+		}
+		if !strings.Contains(body, want.stock) {
+			t.Errorf("column %q does not contain %q", want.title, want.stock)
+		}
+	}
+}
+
+// Each detail entry carries the tag for its own call, with the colour class that
+// matches the direction.
+func assertStockNewsTags(t *testing.T, got string) {
+	t.Helper()
+	for _, want := range []struct{ id, class, label string }{
+		{"n-1001", "up", "短期看漲"},
+		{"n-1002", "down", "短期看跌"},
+		{"n-1003", "up", "長期看好"},
+		{"n-1004", "down", "長期看壞"},
+	} {
+		entry := newsEntry(got, want.id)
+		if entry == "" {
+			t.Errorf("news entry %s missing", want.id)
+			continue
+		}
+		wantTag := `<span class="tag ` + want.class + `">`
+		if !strings.Contains(entry, wantTag) {
+			t.Errorf("news entry %s missing tag %s", want.id, wantTag)
+		}
+		if !strings.Contains(entry, want.label) {
+			t.Errorf("news entry %s missing label %q", want.id, want.label)
+		}
+	}
+}
+
+func newsEntry(got, id string) string {
+	start := strings.Index(got, `id="`+id+`"`)
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(got[start:], `</article>`)
+	if end < 0 {
+		return ""
+	}
+	return got[start : start+end]
+}
