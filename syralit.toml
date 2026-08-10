@@ -1,6 +1,6 @@
-# Briefast runtime configuration. Copy this file to syralit.toml for local use.
-# Docker Compose mounts this example by default; set BRIEFAST_CONFIG=./syralit.toml
-# to mount the private copy instead.
+# Briefast runtime configuration, tracked in version control.
+# Secrets belong in .env, never here. Point BRIEFAST_CONFIG at another file to
+# override this one per environment.
 title = "Briefast｜每日產業與股市報告"
 host = "0.0.0.0"
 port = 8600
@@ -32,7 +32,3 @@ max_upload_size_mb = 2
 connecting = "連線中…"
 loading = "載入中…"
 
-[secrets]
-# Uncomment in the private syralit.toml, or set the environment variable with
-# the same name. Do not commit the private file.
-# BRIEFAST_ADMIN_PASSWORD = "replace-with-a-long-random-password"

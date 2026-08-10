@@ -68,29 +68,32 @@ curl --fail-with-body \
 需求：Go 1.25.11 以上。
 
 ```bash
-cp syralit.toml.example syralit.toml
-# 編輯 syralit.toml，設定 [secrets].BRIEFAST_ADMIN_PASSWORD
+cp .env.example .env
+# 編輯 .env，填入 BRIEFAST_ADMIN_PASSWORD
+set -a; source .env; set +a
 go test ./...
 go run .
 ```
 
-預設網址是 <http://localhost:8600/>，資料庫是 `data/briefast.db`。也可不建立私密設定檔，改用環境變數：
+`syralit.toml` 已在版控中，clone 後不需要複製或修改。Go 程式不會自己解析 `.env`，所以本機啟動前要先如上把它載入環境；也可以直接在指令前帶環境變數：
 
 ```bash
 BRIEFAST_ADMIN_PASSWORD='replace-me' go run .
 ```
+
+預設網址是 <http://localhost:8600/>，資料庫是 `data/briefast.db`。
 
 管理員密碼未設定時，公開頁與 API 仍可服務，但後台會拒絕登入並顯示設定錯誤。API key 依產品需求明文存於 SQLite，請限制 `data/` 或 Docker volume 的存取權限。
 
 ## Docker Compose 部署
 
 ```bash
-cp syralit.toml.example syralit.toml
-# 在 syralit.toml 填入管理員密碼
-BRIEFAST_CONFIG=./syralit.toml docker compose up -d --build
+cp .env.example .env
+# 編輯 .env，填入 BRIEFAST_ADMIN_PASSWORD
+docker compose up -d --build
 ```
 
-也可以直接注入環境變數：
+Compose 會自動讀取本目錄的 `.env`，不需要額外參數。`BRIEFAST_CONFIG` 留空時掛載版控中的 `syralit.toml`，需要環境專屬設定時在 `.env` 指向自己的檔案。也可以直接注入環境變數：
 
 ```bash
 BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --build
@@ -100,14 +103,14 @@ BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --b
 
 ## 每日流程 skill
 
-`skills/daily-brief/SKILL.md` 定義完整四步驟與錯誤處理。執行前必須設定：
+`skills/daily-brief/SKILL.md` 定義完整四步驟與錯誤處理。agent 從**執行工作區根目錄**的 `.env` 讀取設定，範本見 `skills/daily-brief/.env.example`：
 
-```bash
-export BRIEFAST_URL='https://briefast.example.com'
-export BRIEFAST_API_KEY='brf_...'
+```
+BRIEFAST_URL=https://briefast.example.com
+BRIEFAST_API_KEY=brf_...
 ```
 
-任一變數缺少時，skill 會在 POST 前停止。非 200 回應會帶回 response body；5xx 只重試一次，400 則依 `errors` 修正 payload，無法修正時原文回報。
+`.env` 不存在或任一鍵缺少時，skill 會在蒐集前停止。非 200 回應會帶回 response body；5xx 只重試一次，400 則依 `errors` 修正 payload，無法修正時原文回報。
 
 ## License
 

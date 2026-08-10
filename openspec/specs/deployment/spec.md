@@ -61,56 +61,31 @@ tests:
 ---
 ### Requirement: Configuration injection
 
-Runtime secrets (admin password, optional overrides) SHALL be provided via environment variables or a syralit.toml file mounted at deploy time. The repo SHALL provide syralit.toml.example documenting every setting, and the real syralit.toml SHALL be excluded from version control via .gitignore.
+Non-secret runtime configuration SHALL live in a single syralit.toml file tracked in version control, and the repo SHALL NOT carry a separate example copy of it. The tracked syralit.toml SHALL NOT contain a secrets section. Secrets and deployment variables SHALL live in a .env file at the repo root that is excluded from version control, and the repo SHALL track a .env.example listing every key with its purpose and no real values. The admin password SHALL be supplied through the BRIEFAST_ADMIN_PASSWORD key of that .env, resolved as an environment variable at runtime. Docker Compose SHALL take BRIEFAST_CONFIG, BRIEFAST_PORT, and BRIEFAST_ADMIN_PASSWORD from the same .env through its native variable substitution, requiring no extra flags. Deployments needing environment-specific settings SHALL point BRIEFAST_CONFIG at their own file rather than editing the tracked one.
 
-#### Scenario: Example config provided
+#### Scenario: Clone and run without setup steps
 
-- **WHEN** an operator prepares a new deployment
-- **THEN** copying syralit.toml.example and filling in the admin password yields a working configuration
+- **WHEN** an operator clones the repo, copies .env.example to .env, fills in the admin password, and starts the stack with Compose
+- **THEN** the tracked syralit.toml is mounted and the password reaches the container with no additional flags or copying of config templates
 
 #### Scenario: Secrets never committed
 
-- **WHEN** git status is inspected after creating a local syralit.toml
-- **THEN** syralit.toml is ignored and only syralit.toml.example is tracked
+- **WHEN** git status is inspected after configuring an admin password
+- **THEN** the password appears in no tracked file, .env is ignored, and the tracked syralit.toml carries no secrets section at all
+
+#### Scenario: Environment-specific override
+
+- **WHEN** a deployment sets BRIEFAST_CONFIG in its .env to its own configuration file
+- **THEN** Compose mounts that file instead of the tracked syralit.toml, with the same parsing behavior as before
 
 <!-- @trace
-source: daily-report-site
-updated: 2026-08-09
+source: track-syralit-config
+updated: 2026-08-10
 code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
   - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
+  - README.md
+  - syralit.toml
+  - syralit.toml.example
   - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
+  - .env.example
 -->

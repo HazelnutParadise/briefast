@@ -1,5 +1,4 @@
-# Runtime configuration and secrets
-syralit.toml
+# Runtime secrets
 .env
 
 # Persistent SQLite data

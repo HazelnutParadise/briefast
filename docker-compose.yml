@@ -11,7 +11,7 @@ services:
       BRIEFAST_DB_PATH: /app/data/briefast.db
     volumes:
       - briefast-data:/app/data
-      - ${BRIEFAST_CONFIG:-./syralit.toml.example}:/app/syralit.toml:ro
+      - ${BRIEFAST_CONFIG:-./syralit.toml}:/app/syralit.toml:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8600/"]
       interval: 30s
