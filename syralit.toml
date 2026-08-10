@@ -1,6 +1,6 @@
-# Briefast runtime configuration, tracked in version control.
-# Secrets belong in .env, never here. Point BRIEFAST_CONFIG at another file to
-# override this one per environment.
+# Briefast runtime configuration. This file is part of the program: it is tracked
+# in version control and baked into the container image, not injected at deploy
+# time. Secrets and per-deployment values belong in .env, never here.
 title = "Briefast｜每日產業與股市報告"
 host = "0.0.0.0"
 port = 8600

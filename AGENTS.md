@@ -60,7 +60,7 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 - 報告更新一律走 `POST /api/report` 與有效 Bearer key，不新增未驗證的更新端點。
 - 同日報告採全量覆寫；report upsert 與 `ingest_ok` log 必須在同一 transaction。
 - API 每次都從 SQLite 查 key 狀態，撤銷必須立即生效；401 與 400 也要寫 update_log。
-- `syralit.toml` 是進版控的非機密設定，不含 `[secrets]` 區段。機密與部署變數（`BRIEFAST_ADMIN_PASSWORD`、`BRIEFAST_CONFIG`、`BRIEFAST_PORT`、`BRIEFAST_DB_PATH`）放 repo 根目錄的 `.env`，該檔不進版控，鍵名見 `.env.example`。Compose 會自動讀 `.env`；本機跑 Go 要先自行載入。
+- `syralit.toml` 是進版控的非機密設定，不含 `[secrets]` 區段。它會包進容器映像，不在部署期掛載。機密與部署變數（`BRIEFAST_ADMIN_PASSWORD`、`BRIEFAST_PORT`、`BRIEFAST_DATA`）放 repo 根目錄的 `.env`，該檔不進版控，鍵名見 `.env.example`。Compose 會自動讀 `.env`；本機跑 Go 要先自行載入。
 - API key 依已定案需求明文保存並可重複檢視。不得在 log、錯誤訊息或文件範例洩漏真實 token。
 - 視覺遵循 `DESIGN.md` 與 benchmark：零圓角、零陰影、規線只到大區塊、台股紅漲綠跌永不反轉、每個公開報告頁都有固定免責聲明。
 - migration 已進版控後視為不可變；資料結構變更新增下一版 migration，不修改既有 migration。
@@ -73,7 +73,7 @@ go test ./...                  # API 用 httptest，UI 用 sy.NewAppTest
 docker compose up -d --build   # 建置與部署，SQLite 放 named volume
 ```
 
-本機資料庫預設為 `data/briefast.db`，可用 `BRIEFAST_DB_PATH` 覆寫。Compose 的主機 port 用 `BRIEFAST_PORT` 設定，私密設定檔路徑用 `BRIEFAST_CONFIG` 設定。
+本機資料庫預設為 `data/briefast.db`，可用 `BRIEFAST_DB_PATH` 覆寫；容器內固定為 `/app/data/briefast.db`。Compose 的主機 port 用 `BRIEFAST_PORT` 設定，資料落地位置用 `BRIEFAST_DATA` 設定（預設 named volume）。
 
 ## Follow-ups
 

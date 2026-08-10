@@ -93,13 +93,13 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Compose 會自動讀取本目錄的 `.env`，不需要額外參數。`BRIEFAST_CONFIG` 留空時掛載版控中的 `syralit.toml`，需要環境專屬設定時在 `.env` 指向自己的檔案。也可以直接注入環境變數：
+Compose 會自動讀取本目錄的 `.env`，不需要額外參數。`syralit.toml` 已包進映像，不必掛載；`.env` 控制的是管理員密碼、對外埠與資料庫落地位置（`BRIEFAST_DATA`，預設為 named volume）。也可以直接注入環境變數：
 
 ```bash
 BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --build
 ```
 
-`BRIEFAST_PORT` 是主機對外 port，容器內固定使用 8600。`briefast-data` named volume 掛在 `/app/data`，所以重建或重啟容器不會刪除 reports、API keys 或 update log。網域與 HTTPS 應由外部反向代理處理。
+`BRIEFAST_PORT` 是主機對外 port，容器內固定使用 8600。資料目錄預設掛 `briefast-data` named volume；在 `.env` 把 `BRIEFAST_DATA` 設成主機路徑即改為 bind mount。無論哪種，重建或重啟容器都不會刪除 reports、API keys 或 update log。網域與 HTTPS 應由外部反向代理處理。
 
 ## 每日流程 skill
 

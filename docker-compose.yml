@@ -10,8 +10,8 @@ services:
       BRIEFAST_ADMIN_PASSWORD: "${BRIEFAST_ADMIN_PASSWORD:-}"
       BRIEFAST_DB_PATH: /app/data/briefast.db
     volumes:
-      - briefast-data:/app/data
-      - ${BRIEFAST_CONFIG:-./syralit.toml}:/app/syralit.toml:ro
+      # 資料庫落地位置。預設用 named volume；在 .env 設 BRIEFAST_DATA 為主機路徑即改為 bind mount。
+      - ${BRIEFAST_DATA:-briefast-data}:/app/data
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8600/"]
       interval: 30s

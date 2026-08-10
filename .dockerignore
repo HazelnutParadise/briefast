@@ -1,7 +1,8 @@
+# syralit.toml 是程式的一部分，必須進映像，勿加入排除。
 .git
 .gitignore
+.env
 data
-syralit.toml
 docs
 openspec
 *.md
