@@ -456,7 +456,7 @@ tests:
 ---
 ### Requirement: Pinned source endpoints
 
-The skill SHALL pin every news source to a named list endpoint verified to be reachable and to yield full article text, and SHALL NOT direct the agent to discover sources from portal homepages. The pinned set SHALL be: cnyes category list API with the six categories tw_stock, headline, tech, tw_macro, cnyeshouse, and wd_stock, whose list response already carries full article content and stock tags so no detail-page fetch is made, with wd_stock feeding overview_md only; TWSE OpenAPI datasets t187ap04_L (material information) and t187ap05_L (monthly revenue) pulled whole and filtered by the collection window; CTEE rss_web livenews RSS for the six categories policy, stock, finance, industry, house, and tech, with article bodies fetched over plain HTTP and no headless browser; CNA finance RSS; TechNews site feed; LTN business RSS; WSJ Markets RSS at feeds.a.dj.com/rss/RSSMarketsMain.xml, used from feed item titles and descriptions only because WSJ article pages sit behind a paywall; and CNBC top stories RSS at www.cnbc.com/id/100003114/device/rss/rss.html, with CNBC article bodies fetched over plain HTTP; both foreign wire feeds are subject to the foreign wire scope requirement. The skill SHALL NOT list UDN as a source.
+The skill SHALL pin every news source to a named list endpoint verified to be reachable and to yield full article text, and SHALL NOT direct the agent to discover sources from portal homepages. The pinned set SHALL be: cnyes category list API with the six categories tw_stock, headline, tech, tw_macro, cnyeshouse, and wd_stock, whose list response already carries full article content and stock tags so no detail-page fetch is made, with wd_stock feeding overview_md only; TWSE OpenAPI datasets t187ap04_L (material information) and t187ap05_L (monthly revenue) pulled whole and filtered by the collection window; CTEE rss_web livenews RSS for the six categories policy, stock, finance, industry, house, and tech, with article bodies fetched over plain HTTP and no headless browser; CNA finance RSS; TechNews site feed; LTN business RSS; and CNBC top stories RSS at www.cnbc.com/id/100003114/device/rss/rss.html, with CNBC article bodies fetched over plain HTTP and subject to the foreign wire scope requirement. The skill SHALL NOT list WSJ Markets as a source, because its article pages sit behind a paywall and feed summaries alone cannot support judgement, and SHALL NOT list UDN as a source.
 
 #### Scenario: Collection uses pinned endpoints
 
@@ -470,7 +470,7 @@ The skill SHALL pin every news source to a named list endpoint verified to be re
 
 
 <!-- @trace
-source: foreign-news-batch
+source: remove-wsj-source
 updated: 2026-08-15
 code:
   - skills/daily-brief/SKILL.md
@@ -555,7 +555,7 @@ code:
 ---
 ### Requirement: Batched collection with per-batch counts
 
-The skill SHALL split collection into five named batches, each naming the endpoints it covers and each reporting its own counts. Batch one SHALL cover the six cnyes category endpoints and report, per category, how many items were returned and how many of those were unread. Batch two SHALL cover the two TWSE datasets and report, per dataset, how many records fall inside the collection window. Batch three SHALL cover the six CTEE category feeds and report unread counts per category. Batch four SHALL cover the CNA, TechNews, and LTN feeds and report unread counts per source. Batch five SHALL cover the WSJ Markets and CNBC top stories feeds and report unread counts per source.
+The skill SHALL split collection into five named batches, each naming the endpoints it covers and each reporting its own counts. Batch one SHALL cover the six cnyes category endpoints and report, per category, how many items were returned and how many of those were unread. Batch two SHALL cover the two TWSE datasets and report, per dataset, how many records fall inside the collection window. Batch three SHALL cover the six CTEE category feeds and report unread counts per category. Batch four SHALL cover the CNA, TechNews, and LTN feeds and report unread counts per source. Batch five SHALL cover the CNBC top stories feed and report its returned and unread counts.
 
 The five batches MAY run in parallel with one another, since they target independent hosts. Within batch two the two TWSE requests SHALL remain serial under the existing interval rule, because that limit applies per host rather than per batch. After all batches return, the skill SHALL require a consolidated table covering every source, and SHALL forbid starting judgement until that table is complete — an absent entry SHALL be treated as an unattempted source, not as an absence of news. A batch whose sources remain unreachable after the retry SHALL be recorded as failed in the consolidated table and handled under the source collection completeness gate: publication proceeds from what was collected, including when the failed batch is the primary source batch or batch five, and every missing source is listed in the run report.
 
@@ -576,12 +576,12 @@ The five batches MAY run in parallel with one another, since they target indepen
 
 #### Scenario: Foreign wire batch failure does not stop the run
 
-- **WHEN** both feeds in batch five remain unreachable after one retry
-- **THEN** the agent publishes from the remaining batches and lists the two feeds as missing sources in its run report
+- **WHEN** the CNBC feed remains unreachable after one retry
+- **THEN** the agent publishes from the remaining batches and lists CNBC as a missing source in its run report
 
 
 <!-- @trace
-source: foreign-news-batch
+source: remove-wsj-source
 updated: 2026-08-15
 code:
   - skills/daily-brief/SKILL.md
@@ -590,7 +590,7 @@ code:
 ---
 ### Requirement: Foreign wire scope and cross-language deduplication
 
-The skill SHALL restrict foreign wire content (WSJ Markets and CNBC top stories) to overview_md and to background context inside industry event summaries, and SHALL NOT allow foreign wire items to create or support calls or stock_news entries. Because the similarity check in seen.py compares article bodies within one language and cannot match a Chinese article against an English article covering the same event, the skill SHALL direct the agent to deduplicate foreign wire items by event against the Taiwanese sources collected in the same run: a foreign wire item whose event is already covered by a Taiwanese source SHALL be judged as not reported, recorded via seen.py record with decision skipped, and the Taiwanese version SHALL be the one used. Only foreign wire items covering events absent from the Taiwanese sources SHALL feed report content.
+The skill SHALL restrict foreign wire content (CNBC top stories) to overview_md and to background context inside industry event summaries, and SHALL NOT allow foreign wire items to create or support calls or stock_news entries. Because the similarity check in seen.py compares article bodies within one language and cannot match a Chinese article against an English article covering the same event, the skill SHALL direct the agent to deduplicate foreign wire items by event against the Taiwanese sources collected in the same run: a foreign wire item whose event is already covered by a Taiwanese source SHALL be judged as not reported, recorded via seen.py record with decision skipped, and the Taiwanese version SHALL be the one used. Only foreign wire items covering events absent from the Taiwanese sources SHALL feed report content.
 
 #### Scenario: Event already covered by Taiwanese media
 
@@ -599,11 +599,12 @@ The skill SHALL restrict foreign wire content (WSJ Markets and CNBC top stories)
 
 #### Scenario: Event only in foreign wires
 
-- **WHEN** a WSJ Markets item reports an export-control detail that no Taiwanese source in the window covers
+- **WHEN** a CNBC item reports an export-control detail that no Taiwanese source in the window covers
 - **THEN** the item informs overview_md or industry event background, and no calls or stock_news entry cites it
 
+
 <!-- @trace
-source: foreign-news-batch
+source: remove-wsj-source
 updated: 2026-08-15
 code:
   - skills/daily-brief/SKILL.md
