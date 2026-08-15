@@ -456,7 +456,7 @@ tests:
 ---
 ### Requirement: Pinned source endpoints
 
-The skill SHALL pin every news source to a named list endpoint verified to be reachable and to yield full article text, and SHALL NOT direct the agent to discover sources from portal homepages. The pinned set SHALL be: cnyes category list API with the six categories tw_stock, headline, tech, tw_macro, cnyeshouse, and wd_stock, whose list response already carries full article content and stock tags so no detail-page fetch is made, with wd_stock feeding overview_md only; TWSE OpenAPI datasets t187ap04_L (material information) and t187ap05_L (monthly revenue) pulled whole and filtered by the collection window; CTEE rss_web livenews RSS for the six categories policy, stock, finance, industry, house, and tech, with article bodies fetched over plain HTTP and no headless browser; CNA finance RSS; TechNews site feed; and LTN business RSS. The skill SHALL NOT list UDN as a source.
+The skill SHALL pin every news source to a named list endpoint verified to be reachable and to yield full article text, and SHALL NOT direct the agent to discover sources from portal homepages. The pinned set SHALL be: cnyes category list API with the six categories tw_stock, headline, tech, tw_macro, cnyeshouse, and wd_stock, whose list response already carries full article content and stock tags so no detail-page fetch is made, with wd_stock feeding overview_md only; TWSE OpenAPI datasets t187ap04_L (material information) and t187ap05_L (monthly revenue) pulled whole and filtered by the collection window; CTEE rss_web livenews RSS for the six categories policy, stock, finance, industry, house, and tech, with article bodies fetched over plain HTTP and no headless browser; CNA finance RSS; TechNews site feed; LTN business RSS; WSJ Markets RSS at feeds.a.dj.com/rss/RSSMarketsMain.xml, used from feed item titles and descriptions only because WSJ article pages sit behind a paywall; and CNBC top stories RSS at www.cnbc.com/id/100003114/device/rss/rss.html, with CNBC article bodies fetched over plain HTTP; both foreign wire feeds are subject to the foreign wire scope requirement. The skill SHALL NOT list UDN as a source.
 
 #### Scenario: Collection uses pinned endpoints
 
@@ -470,11 +470,10 @@ The skill SHALL pin every news source to a named list endpoint verified to be re
 
 
 <!-- @trace
-source: daily-brief-source-overhaul
-updated: 2026-08-10
+source: foreign-news-batch
+updated: 2026-08-15
 code:
   - skills/daily-brief/SKILL.md
-  - skills/daily-brief/.env.example
 -->
 
 ---
@@ -556,28 +555,92 @@ code:
 ---
 ### Requirement: Batched collection with per-batch counts
 
-The skill SHALL split collection into four named batches, each naming the endpoints it covers and each reporting its own counts. Batch one SHALL cover the six cnyes category endpoints and report, per category, how many items were returned and how many of those were unread. Batch two SHALL cover the two TWSE datasets and report, per dataset, how many records fall inside the collection window. Batch three SHALL cover the six CTEE category feeds and report unread counts per category. Batch four SHALL cover the CNA, TechNews, and LTN feeds and report unread counts per source.
+The skill SHALL split collection into five named batches, each naming the endpoints it covers and each reporting its own counts. Batch one SHALL cover the six cnyes category endpoints and report, per category, how many items were returned and how many of those were unread. Batch two SHALL cover the two TWSE datasets and report, per dataset, how many records fall inside the collection window. Batch three SHALL cover the six CTEE category feeds and report unread counts per category. Batch four SHALL cover the CNA, TechNews, and LTN feeds and report unread counts per source. Batch five SHALL cover the WSJ Markets and CNBC top stories feeds and report unread counts per source.
 
-The four batches MAY run in parallel with one another, since they target independent hosts. Within batch two the two TWSE requests SHALL remain serial under the existing interval rule, because that limit applies per host rather than per batch. After all batches return, the skill SHALL require a consolidated table covering every source, and SHALL forbid starting judgement until that table is complete — an absent entry SHALL be treated as an unattempted source, not as an absence of news. A failure of the primary source batch SHALL stop the workflow regardless of what the other batches returned.
+The five batches MAY run in parallel with one another, since they target independent hosts. Within batch two the two TWSE requests SHALL remain serial under the existing interval rule, because that limit applies per host rather than per batch. After all batches return, the skill SHALL require a consolidated table covering every source, and SHALL forbid starting judgement until that table is complete — an absent entry SHALL be treated as an unattempted source, not as an absence of news. A batch whose sources remain unreachable after the retry SHALL be recorded as failed in the consolidated table and handled under the source collection completeness gate: publication proceeds from what was collected, including when the failed batch is the primary source batch or batch five, and every missing source is listed in the run report.
 
 #### Scenario: Counts reported per batch
 
-- **WHEN** the agent runs the four batches concurrently
-- **THEN** each batch reports its own per-endpoint counts and judgement waits until all four have reported
+- **WHEN** the agent runs the five batches concurrently
+- **THEN** each batch reports its own per-endpoint counts and judgement waits until all five have reported
 
 #### Scenario: Missing batch blocks judgement
 
 - **WHEN** the consolidated table lacks an entry for the CTEE batch
 - **THEN** judgement does not begin and the agent resolves the gap by fetching that batch or recording it as a failed source
 
-#### Scenario: Primary failure stops the run
+#### Scenario: Primary batch failure does not stop the run
 
 - **WHEN** the cnyes batch fails after its retry while the other batches returned successfully
-- **THEN** the workflow stops without composing or posting a report
+- **THEN** the agent composes and publishes the report from the remaining batches, lists cnyes in its run report, and the published report content discloses nothing about the outage
+
+#### Scenario: Foreign wire batch failure does not stop the run
+
+- **WHEN** both feeds in batch five remain unreachable after one retry
+- **THEN** the agent publishes from the remaining batches and lists the two feeds as missing sources in its run report
+
 
 <!-- @trace
-source: batched-source-collection
-updated: 2026-08-13
+source: foreign-news-batch
+updated: 2026-08-15
+code:
+  - skills/daily-brief/SKILL.md
+-->
+
+---
+### Requirement: Foreign wire scope and cross-language deduplication
+
+The skill SHALL restrict foreign wire content (WSJ Markets and CNBC top stories) to overview_md and to background context inside industry event summaries, and SHALL NOT allow foreign wire items to create or support calls or stock_news entries. Because the similarity check in seen.py compares article bodies within one language and cannot match a Chinese article against an English article covering the same event, the skill SHALL direct the agent to deduplicate foreign wire items by event against the Taiwanese sources collected in the same run: a foreign wire item whose event is already covered by a Taiwanese source SHALL be judged as not reported, recorded via seen.py record with decision skipped, and the Taiwanese version SHALL be the one used. Only foreign wire items covering events absent from the Taiwanese sources SHALL feed report content.
+
+#### Scenario: Event already covered by Taiwanese media
+
+- **WHEN** a CNBC item covers a Fed statement that a cnyes article in the same collection window already reports
+- **THEN** the CNBC item is recorded as skipped and overview_md draws on the cnyes version
+
+#### Scenario: Event only in foreign wires
+
+- **WHEN** a WSJ Markets item reports an export-control detail that no Taiwanese source in the window covers
+- **THEN** the item informs overview_md or industry event background, and no calls or stock_news entry cites it
+
+<!-- @trace
+source: foreign-news-batch
+updated: 2026-08-15
+code:
+  - skills/daily-brief/SKILL.md
+-->
+
+---
+### Requirement: Previous-close reference data
+
+The skill SHALL direct the agent to fetch previous trading day closing prices during collection, using two plain-HTTP requests: the TWSE listed-stock daily trading dataset exchangeReport/STOCK_DAY_ALL on openapi.twse.com.tw, and the TPEx mainboard daily close quotes dataset openapi/v1/tpex_mainboard_daily_close_quotes on www.tpex.org.tw. The TWSE request SHALL follow the existing TWSE request throttling requirement; the TPEx host is outside that throttle. The agent SHALL validate the trading date embedded in each response (ROC calendar format) against the expected previous trading day in Taipei time, and SHALL treat a response carrying an older date as a failed fetch rather than silently using stale prices. The agent SHALL report, per source, how many records were returned and the embedded data date.
+
+Closing prices SHALL serve as judgement context — for example whether news appears already priced in, or as a magnitude baseline — and MAY be quoted in report content only with the price date stated. The skill SHALL forbid creating calls or stock_news entries from price movement alone without supporting news from the collection window. When both price fetches fail after one retry each, the agent SHALL proceed to judge and publish from news alone, list the missing price data in its run report, and disclose nothing about the gap in report content, consistent with the source collection completeness gate's internal-disclosure rule.
+
+#### Scenario: Prices fetched and dated
+
+- **WHEN** the agent fetches both closing-price datasets before judgement on a normal trading morning
+- **THEN** each response's embedded date matches the previous Taipei trading day, the agent reports record counts and the data date per source, and judgement proceeds with prices available as context
+
+#### Scenario: Stale date treated as failure
+
+- **WHEN** the TWSE response carries an embedded date older than the previous Taipei trading day after the retry
+- **THEN** the agent treats the TWSE price fetch as failed, judges without listed-stock prices, and lists the gap in its run report with nothing disclosed in report content
+
+#### Scenario: No call from price movement alone
+
+- **WHEN** a stock shows a sharp previous-day price move but no news about it exists in the collection window
+- **THEN** no calls or stock_news entry is created for that stock, and the price move at most informs context inside entries already backed by news
+
+##### Example: price quoting with date
+
+| Situation | Allowed in report content | Not allowed |
+|-----------|--------------------------|-------------|
+| TSMC news entry, price date 2026-08-14 | 昨收（8/14）1,080 元，利多公布前已連漲 | 昨收 1,080 元（無日期標示） |
+| Stock fell 5% on 8/14, no news in window | (no entry at all) | short_bear call citing only the 5% drop |
+
+<!-- @trace
+source: previous-close-reference
+updated: 2026-08-15
 code:
   - skills/daily-brief/SKILL.md
 -->
