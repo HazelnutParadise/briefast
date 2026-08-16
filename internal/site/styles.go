@@ -1,12 +1,12 @@
 package site
 
-// archiveStyles repaints every page under the history route on aged archive
-// paper, marking the section itself rather than the age of the viewed report.
-// Light mode also darkens the link teal one step (same hue) so link text keeps
-// a contrast ratio of at least 4.5:1 on the darker paper; verified values —
-// light: ink 9.99, ink-soft 4.73, link 4.96, up 6.43, down 5.00;
-// dark: ink 12.27, ink-soft 5.83, link 6.59, up 4.82, down 6.89.
-const archiveStyles = `<style>:root{--paper:#EAE0CA;--link:#0B6870}@media(prefers-color-scheme:dark){:root{--paper:#2A251E;--link:#5FB8C0}}</style>`
+// archiveStyles repaints every page under the history route on warm-gray
+// archive paper, marking the section itself rather than the age of the viewed
+// report. Light mode also darkens the link teal one step (same hue) so link
+// text keeps a contrast ratio of at least 4.5:1 on the darker paper; verified
+// values — light: ink 9.96, ink-soft 4.71, link 4.94, up 6.41, down 4.98;
+// dark: ink 12.18, ink-soft 5.79, link 6.54, up 4.78, down 6.84.
+const archiveStyles = `<style>:root{--paper:#E4E0D9;--link:#0B6870}@media(prefers-color-scheme:dark){:root{--paper:#282623;--link:#5FB8C0}}</style>`
 
 const styles = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;600;700;900&display=swap');

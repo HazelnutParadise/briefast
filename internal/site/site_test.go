@@ -312,7 +312,7 @@ func TestHistoricalReportNoticeAndNavigation(t *testing.T) {
 	if !strings.Contains(got, `class="nav-links"`) || !strings.Contains(got, `<a href="/">回首頁</a>`) || !strings.Contains(got, `<a href="/history/">歷史報告</a>`) {
 		t.Errorf("historical view masthead lacks home and history navigation: %s", got)
 	}
-	if !strings.Contains(got, archiveStyles) || !strings.Contains(got, `--paper:#EAE0CA`) || !strings.Contains(got, `--paper:#2A251E`) {
+	if !strings.Contains(got, archiveStyles) || !strings.Contains(got, `--paper:#E4E0D9`) || !strings.Contains(got, `--paper:#282623`) {
 		t.Errorf("historical view missing archive paper override for both themes")
 	}
 
