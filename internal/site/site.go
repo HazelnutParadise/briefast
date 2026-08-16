@@ -66,19 +66,18 @@ func (s *Site) HistoryPage(page int, date string) {
 	if date != "" {
 		r, err := s.store.ReportByDate(context.Background(), date)
 		if err == store.ErrNotFound {
-			sy.HTML(styles + masthead(dateLineArchive, navArchiveView) + `<main class="briefast shell empty"><h2>找不到這份報告</h2><p><a href="/">回首頁</a><a class="gap" href="/history/">返回歷史報告</a></p></main>` + footer())
+			sy.HTML(styles + archiveStyles + masthead(dateLineArchive, navArchiveView) + `<main class="briefast shell empty"><h2>找不到這份報告</h2><p><a href="/">回首頁</a><a class="gap" href="/history/">返回歷史報告</a></p></main>` + footer())
 			return
 		}
 		if err != nil {
 			sy.Error("無法載入歷史報告")
 			return
 		}
-		notice, archive := "", ""
+		notice := ""
 		if latestDate, lerr := s.store.LatestReportDate(context.Background()); lerr == nil && r.Date < latestDate {
 			notice = archiveNotice(r.Date)
-			archive = archiveStyles
 		}
-		sy.HTML(styles + archive + s.renderReport(r, navArchiveView, notice) + footer())
+		sy.HTML(styles + archiveStyles + s.renderReport(r, navArchiveView, notice) + footer())
 		return
 	}
 
@@ -92,7 +91,7 @@ func (s *Site) HistoryPage(page int, date string) {
 		sy.Error("無法載入歷史報告")
 		return
 	}
-	sy.HTML(styles + masthead(dateLineArchive, navToHome) + renderHistory(rows, page, count) + footer())
+	sy.HTML(styles + archiveStyles + masthead(dateLineArchive, navToHome) + renderHistory(rows, page, count) + footer())
 }
 
 func (s *Site) pageConfig() {

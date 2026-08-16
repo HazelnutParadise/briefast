@@ -318,8 +318,10 @@ func TestHistoricalReportNoticeAndNavigation(t *testing.T) {
 
 	newest := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-25") })
 	newest.Run()
-	if got := renderedHTML(t, newest); strings.Contains(got, `class="briefast archive-note"`) || strings.Contains(got, "並非最新內容") || strings.Contains(got, archiveStyles) {
-		t.Fatalf("newest report opened from history must not carry the historical notice or archive background")
+	if got := renderedHTML(t, newest); strings.Contains(got, `class="briefast archive-note"`) || strings.Contains(got, "並非最新內容") {
+		t.Fatalf("newest report opened from history must not carry the historical notice")
+	} else if !strings.Contains(got, archiveStyles) {
+		t.Fatalf("newest report opened from history must still use the history-section archive background")
 	}
 
 	missing := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-06") })
@@ -327,6 +329,21 @@ func TestHistoricalReportNoticeAndNavigation(t *testing.T) {
 	got = renderedHTML(t, missing)
 	if !strings.Contains(got, "找不到這份報告") || !strings.Contains(got, `<a href="/">回首頁</a>`) || !strings.Contains(got, `href="/history/"`) {
 		t.Fatalf("not-found state lacks home and history links: %s", got)
+	}
+	if !strings.Contains(got, archiveStyles) {
+		t.Fatalf("not-found state must use the history-section archive background")
+	}
+
+	list := sy.NewAppTest(func() { app.HistoryPage(1, "") })
+	list.Run()
+	if !strings.Contains(renderedHTML(t, list), archiveStyles) {
+		t.Fatalf("history list must use the history-section archive background")
+	}
+
+	home := sy.NewAppTest(app.Home)
+	home.Run()
+	if strings.Contains(renderedHTML(t, home), archiveStyles) {
+		t.Fatalf("homepage must not use the archive background")
 	}
 }
 
