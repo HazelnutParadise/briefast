@@ -179,6 +179,17 @@ func (s *Store) LatestReport(ctx context.Context) (*report.Report, error) {
 	return scanReport(s.db.QueryRowContext(ctx, "SELECT payload FROM reports ORDER BY date DESC LIMIT 1"))
 }
 
+func (s *Store) LatestReportDate(ctx context.Context) (string, error) {
+	var date string
+	if err := s.db.QueryRowContext(ctx, "SELECT date FROM reports ORDER BY date DESC LIMIT 1").Scan(&date); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", fmt.Errorf("latest report date: %w", err)
+	}
+	return date, nil
+}
+
 func (s *Store) ReportByDate(ctx context.Context, date string) (*report.Report, error) {
 	return scanReport(s.db.QueryRowContext(ctx, "SELECT payload FROM reports WHERE date = ?", date))
 }

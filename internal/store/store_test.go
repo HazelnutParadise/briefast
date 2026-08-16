@@ -64,6 +64,9 @@ func TestReportsEmptyWriteOverwriteAndSort(t *testing.T) {
 	if _, err := s.LatestReport(ctx); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("LatestReport() error = %v, want ErrNotFound", err)
 	}
+	if _, err := s.LatestReportDate(ctx); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LatestReportDate() error = %v, want ErrNotFound", err)
+	}
 
 	putReport(t, s, testReport("2026-08-05", "五日"))
 	putReport(t, s, testReport("2026-08-07", "舊標題"))
@@ -73,6 +76,10 @@ func TestReportsEmptyWriteOverwriteAndSort(t *testing.T) {
 	latest, err := s.LatestReport(ctx)
 	if err != nil || latest.Date != "2026-08-07" || latest.Headline != "新標題" {
 		t.Fatalf("LatestReport() = %+v, err = %v", latest, err)
+	}
+	latestDate, err := s.LatestReportDate(ctx)
+	if err != nil || latestDate != "2026-08-07" {
+		t.Fatalf("LatestReportDate() = %q, err = %v, want 2026-08-07", latestDate, err)
 	}
 	count, err := s.CountReports(ctx)
 	if err != nil || count != 3 {

@@ -221,7 +221,7 @@ func industryEvent(got, headline string) string {
 func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
 	_, app := setupSite(t)
 	current := fullReport("2026-08-07")
-	got := app.renderReport(&current, navToHistory)
+	got := app.renderReport(&current, navToHistory, "")
 	if count := strings.Count(got, `class="entry-watch"`); count != 6 {
 		t.Fatalf("entry watch blocks = %d, want 6", count)
 	}
@@ -247,7 +247,7 @@ func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
 	for i := range legacy.StockNews {
 		legacy.StockNews[i].WatchMD = ""
 	}
-	legacyHTML := app.renderReport(&legacy, navToHistory)
+	legacyHTML := app.renderReport(&legacy, navToHistory, "")
 	if strings.Contains(legacyHTML, `class="entry-watch"`) || strings.Contains(legacyHTML, "觀察重點") {
 		t.Fatalf("legacy report rendered an entry watch placeholder: %s", legacyHTML)
 	}
@@ -279,6 +279,51 @@ func TestHistoryPagingOrderingAndHistoricalReport(t *testing.T) {
 	got = renderedHTML(t, historical)
 	if !strings.Contains(got, "頭條 2026-07-05") || !strings.Contains(got, `data-section="stock-news"`) || !strings.Contains(got, Disclaimer) {
 		t.Fatalf("historical report did not use shared report layout")
+	}
+}
+
+// A dated view older than the newest report must be visibly marked as
+// historical and offer the way back home; the newest date must not be
+// mislabeled as historical.
+func TestHistoricalReportNoticeAndNavigation(t *testing.T) {
+	s, app := setupSite(t)
+	saveReport(t, s, fullReport("2026-07-05"))
+	saveReport(t, s, fullReport("2026-07-25"))
+
+	old := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-05") })
+	old.Run()
+	got := renderedHTML(t, old)
+	noticeAt := strings.Index(got, `class="briefast archive-note"`)
+	if noticeAt < 0 {
+		t.Fatalf("historical report missing archive notice: %s", got)
+	}
+	notice := got[noticeAt:]
+	if end := strings.Index(notice, `</div></div>`); end > 0 {
+		notice = notice[:end]
+	}
+	for _, want := range []string{"歷史報告", "2026 年 7 月 5 日", "並非最新內容", `<a href="/">看最新報告`, `<a href="/history/">返回歷史列表`} {
+		if !strings.Contains(notice, want) {
+			t.Errorf("archive notice missing %q: %s", want, notice)
+		}
+	}
+	if mainAt := strings.Index(got, `<main `); mainAt < 0 || noticeAt > mainAt {
+		t.Errorf("archive notice must render above the report body")
+	}
+	if !strings.Contains(got, `class="nav-links"`) || !strings.Contains(got, `<a href="/">回首頁</a>`) || !strings.Contains(got, `<a href="/history/">歷史報告</a>`) {
+		t.Errorf("historical view masthead lacks home and history navigation: %s", got)
+	}
+
+	newest := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-25") })
+	newest.Run()
+	if got := renderedHTML(t, newest); strings.Contains(got, `class="briefast archive-note"`) || strings.Contains(got, "並非最新內容") {
+		t.Fatalf("newest report opened from history must not carry the historical notice")
+	}
+
+	missing := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-06") })
+	missing.Run()
+	got = renderedHTML(t, missing)
+	if !strings.Contains(got, "找不到這份報告") || !strings.Contains(got, `<a href="/">回首頁</a>`) || !strings.Contains(got, `href="/history/"`) {
+		t.Fatalf("not-found state lacks home and history links: %s", got)
 	}
 }
 

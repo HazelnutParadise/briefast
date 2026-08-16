@@ -49,7 +49,7 @@ func (s *Site) Home() {
 		sy.Error("無法載入報告")
 		return
 	}
-	sy.HTML(styles + s.renderReport(r, navToHistory) + footer())
+	sy.HTML(styles + s.renderReport(r, navToHistory, "") + footer())
 }
 
 func (s *Site) History() {
@@ -66,14 +66,18 @@ func (s *Site) HistoryPage(page int, date string) {
 	if date != "" {
 		r, err := s.store.ReportByDate(context.Background(), date)
 		if err == store.ErrNotFound {
-			sy.HTML(styles + masthead(dateLineArchive, navToHistory) + `<main class="briefast shell empty"><h2>找不到這份報告</h2><a href="/history/">返回歷史報告</a></main>` + footer())
+			sy.HTML(styles + masthead(dateLineArchive, navArchiveView) + `<main class="briefast shell empty"><h2>找不到這份報告</h2><p><a href="/">回首頁</a><a class="gap" href="/history/">返回歷史報告</a></p></main>` + footer())
 			return
 		}
 		if err != nil {
 			sy.Error("無法載入歷史報告")
 			return
 		}
-		sy.HTML(styles + s.renderReport(r, navToHistory) + footer())
+		notice := ""
+		if latestDate, lerr := s.store.LatestReportDate(context.Background()); lerr == nil && r.Date < latestDate {
+			notice = archiveNotice(r.Date)
+		}
+		sy.HTML(styles + s.renderReport(r, navArchiveView, notice) + footer())
 		return
 	}
 
@@ -98,9 +102,10 @@ func (s *Site) pageConfig() {
 	)
 }
 
-func (s *Site) renderReport(r *report.Report, nav string) string {
+func (s *Site) renderReport(r *report.Report, nav, notice string) string {
 	var b strings.Builder
 	b.WriteString(masthead(reportDateLine(r), nav))
+	b.WriteString(notice)
 	b.WriteString(`<main class="briefast shell">`)
 	b.WriteString(`<section class="lead">`)
 	b.WriteString(`<article class="lead-main" data-section="overview"><p class="kicker">盤前總覽</p><h2 class="headline">`)
@@ -240,12 +245,17 @@ func safeHTTPURL(value string) (string, bool) {
 }
 
 const (
-	navToHistory = `<a href="/history/">歷史報告 →</a>`
-	navToHome    = `<a href="/">回首頁 →</a>`
+	navToHistory   = `<a href="/history/">歷史報告 →</a>`
+	navToHome      = `<a href="/">回首頁 →</a>`
+	navArchiveView = `<span class="nav-links"><a href="/">回首頁</a><a href="/history/">歷史報告</a></span>`
 
 	dateLineWaiting = `<b>等待今日晨報</b><span class="sep">｜</span><span>本報告由 AI 彙整公開新聞產生</span>`
 	dateLineArchive = `<b>歷史報告</b><span class="sep">｜</span><span>本報告由 AI 彙整公開新聞產生</span>`
 )
+
+func archiveNotice(date string) string {
+	return `<div class="briefast archive-note"><div class="shell archive-note-in"><span class="archive-flag">歷史報告</span><span class="archive-text">這是 ` + html.EscapeString(displayDate(date)) + ` 的報告，並非最新內容</span><span class="archive-links"><a href="/">看最新報告 →</a><a href="/history/">返回歷史列表</a></span></div></div>`
+}
 
 func reportDateLine(r *report.Report) string {
 	return `<b>` + html.EscapeString(displayDate(r.Date)) + `</b><span class="sep">｜</span><span>` + html.EscapeString(displayGeneratedAt(r.GeneratedAt)) + ` 更新</span><span class="sep">｜</span><span>本報告由 AI 彙整公開新聞產生</span>`
