@@ -73,11 +73,12 @@ func (s *Site) HistoryPage(page int, date string) {
 			sy.Error("無法載入歷史報告")
 			return
 		}
-		notice := ""
+		notice, archive := "", ""
 		if latestDate, lerr := s.store.LatestReportDate(context.Background()); lerr == nil && r.Date < latestDate {
 			notice = archiveNotice(r.Date)
+			archive = archiveStyles
 		}
-		sy.HTML(styles + s.renderReport(r, navArchiveView, notice) + footer())
+		sy.HTML(styles + archive + s.renderReport(r, navArchiveView, notice) + footer())
 		return
 	}
 

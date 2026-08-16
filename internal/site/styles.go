@@ -1,5 +1,12 @@
 package site
 
+// archiveStyles repaints a historical report view on aged archive paper.
+// Light mode also darkens the link teal one step (same hue) so link text keeps
+// a contrast ratio of at least 4.5:1 on the darker paper; verified values —
+// light: ink 9.99, ink-soft 4.73, link 4.96, up 6.43, down 5.00;
+// dark: ink 12.27, ink-soft 5.83, link 6.59, up 4.82, down 6.89.
+const archiveStyles = `<style>:root{--paper:#EAE0CA;--link:#0B6870}@media(prefers-color-scheme:dark){:root{--paper:#2A251E;--link:#5FB8C0}}</style>`
+
 const styles = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;600;700;900&display=swap');
 :root{--paper:#F9F1E7;--ink:#33302E;--ink-soft:#66605A;--rule:#E0D8CA;--rule-heavy:#33302E;--up:#990F3D;--up-tint:#F2DCE2;--down:#1E6A45;--down-tint:#DFEBE0;--link:#0D7680;--band:#262A33;--band-ink:#C9C3BC;--serif:"Noto Serif TC","Songti TC","PMingLiU",serif;--sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}

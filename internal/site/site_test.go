@@ -312,11 +312,14 @@ func TestHistoricalReportNoticeAndNavigation(t *testing.T) {
 	if !strings.Contains(got, `class="nav-links"`) || !strings.Contains(got, `<a href="/">回首頁</a>`) || !strings.Contains(got, `<a href="/history/">歷史報告</a>`) {
 		t.Errorf("historical view masthead lacks home and history navigation: %s", got)
 	}
+	if !strings.Contains(got, archiveStyles) || !strings.Contains(got, `--paper:#EAE0CA`) || !strings.Contains(got, `--paper:#2A251E`) {
+		t.Errorf("historical view missing archive paper override for both themes")
+	}
 
 	newest := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-25") })
 	newest.Run()
-	if got := renderedHTML(t, newest); strings.Contains(got, `class="briefast archive-note"`) || strings.Contains(got, "並非最新內容") {
-		t.Fatalf("newest report opened from history must not carry the historical notice")
+	if got := renderedHTML(t, newest); strings.Contains(got, `class="briefast archive-note"`) || strings.Contains(got, "並非最新內容") || strings.Contains(got, archiveStyles) {
+		t.Fatalf("newest report opened from history must not carry the historical notice or archive background")
 	}
 
 	missing := sy.NewAppTest(func() { app.HistoryPage(1, "2026-07-06") })
