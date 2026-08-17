@@ -309,6 +309,9 @@ func TestHistoricalReportNoticeAndNavigation(t *testing.T) {
 	if mainAt := strings.Index(got, `<main `); mainAt < 0 || noticeAt > mainAt {
 		t.Errorf("archive notice must render above the report body")
 	}
+	if !strings.Contains(styles, `.archive-note{background:var(--band)}`) {
+		t.Errorf("archive notice must use the dark band treatment for prominence")
+	}
 	if !strings.Contains(got, `class="nav-links"`) || !strings.Contains(got, `<a href="/">回首頁</a>`) || !strings.Contains(got, `<a href="/history/">歷史報告</a>`) {
 		t.Errorf("historical view masthead lacks home and history navigation: %s", got)
 	}
