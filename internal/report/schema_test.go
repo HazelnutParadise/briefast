@@ -136,3 +136,64 @@ func TestReportValidateReturnsEveryViolation(t *testing.T) {
 		t.Fatalf("Validate() returned %d errors, want 5: %v", len(errs), errs)
 	}
 }
+
+func chipsSample() *Chips {
+	margin, short := int64(-18270), int64(9056)
+	return &Chips{
+		Date:       "2026-08-20",
+		ForeignNet: 54758664, TrustNet: -15000, DealerNet: 2063215, TotalNet: 56806879,
+		MarginChange: &margin, ShortChange: &short,
+	}
+}
+
+func TestReportValidateChips(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(*Report)
+		want string
+	}{
+		{name: "chips absent", edit: func(*Report) {}},
+		{name: "chips present and valid", edit: func(r *Report) { r.StockNews[0].Chips = chipsSample() }},
+		{name: "chips without margin fields", edit: func(r *Report) {
+			c := chipsSample()
+			c.MarginChange, c.ShortChange = nil, nil
+			r.StockNews[0].Chips = c
+		}},
+		{name: "chips total not recomputed", edit: func(r *Report) {
+			c := chipsSample()
+			c.TotalNet = 0
+			r.StockNews[0].Chips = c
+		}},
+		{name: "chips date malformed", edit: func(r *Report) {
+			c := chipsSample()
+			c.Date = "2026-8-20"
+			r.StockNews[0].Chips = c
+		}, want: "stock_news[0].chips.date"},
+		{name: "chips date empty", edit: func(r *Report) {
+			c := chipsSample()
+			c.Date = ""
+			r.StockNews[0].Chips = c
+		}, want: "stock_news[0].chips.date"},
+		{name: "chips date malformed on third entry", edit: func(r *Report) {
+			first := r.StockNews[0]
+			r.StockNews = append(r.StockNews, first, first)
+			c := chipsSample()
+			c.Date = "20260820"
+			r.StockNews[2].Chips = c
+		}, want: "stock_news[2].chips.date"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := validReport()
+			tt.edit(&r)
+			errs := strings.Join(r.Validate(), "\n")
+			if tt.want == "" && errs != "" {
+				t.Fatalf("Validate() errors = %q, want none", errs)
+			}
+			if tt.want != "" && !strings.Contains(errs, tt.want) {
+				t.Fatalf("Validate() errors = %q, want substring %q", errs, tt.want)
+			}
+		})
+	}
+}

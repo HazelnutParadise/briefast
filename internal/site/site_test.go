@@ -471,3 +471,86 @@ func newsEntry(got, id string) string {
 	}
 	return got[start : start+end]
 }
+
+func chipsFixture() *report.Chips {
+	margin, short := int64(-18270), int64(9056)
+	return &report.Chips{
+		Date:       "2026-08-06",
+		ForeignNet: 54758664, TrustNet: -15000, DealerNet: 2063215, TotalNet: 56806879,
+		MarginChange: &margin, ShortChange: &short,
+	}
+}
+
+func TestChipBlockRendersScaledBarsAndSummary(t *testing.T) {
+	_, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	value.StockNews[0].Chips = chipsFixture()
+	entry := newsEntry(app.renderStockNews(value.StockNews), "n-1001")
+
+	if !strings.Contains(entry, "籌碼面") {
+		t.Fatalf("chip block missing: %s", entry)
+	}
+	for _, want := range []string{
+		`<span class="chip-name">外資</span>`,
+		`<span class="chip-bar up" style="width:100.00%"></span>`,
+		`<span class="chip-name">投信</span>`,
+		`<span class="chip-bar down" style="width:0.03%"></span>`,
+		`<span class="chip-name">自營商</span>`,
+		`<span class="chip-bar up" style="width:3.77%"></span>`,
+		"+54,759 張", "-15 張", "+2,063 張",
+		`<span class="chips-item">三大法人 +56,807 張</span>`,
+		`<span class="chips-item">融資 -18,270 張</span>`,
+		`<span class="chips-item">融券 +9,056 張</span>`,
+		`<span class="chips-item">資料日期 2026-08-06</span>`,
+	} {
+		if !strings.Contains(entry, want) {
+			t.Errorf("chip block missing %q: %s", want, entry)
+		}
+	}
+	if watch, chips, srcs := strings.Index(entry, "短多觀察內容"), strings.Index(entry, "籌碼面"), strings.Index(entry, `class="srcs"`); watch < 0 || chips <= watch || srcs <= chips {
+		t.Errorf("chip block is out of order (watch=%d chips=%d srcs=%d): %s", watch, chips, srcs, entry)
+	}
+}
+
+func TestChipBarsUseBullishRedAndBearishGreen(t *testing.T) {
+	if !strings.Contains(styles, `.chip-bar.up{background:var(--up)}`) || !strings.Contains(styles, `.chip-bar.down{background:var(--down)}`) {
+		t.Fatalf("chip bars do not bind to the direction tokens")
+	}
+	if !strings.Contains(styles, `.chip-val.up{color:var(--up)}`) || !strings.Contains(styles, `.chip-val.down{color:var(--down)}`) {
+		t.Fatalf("chip values do not bind to the direction tokens")
+	}
+	if !strings.Contains(styles, `.chip-val.flat{color:var(--ink-soft)}`) {
+		t.Fatalf("a flat day is coloured as a direction")
+	}
+	assertBullishIsRedAndBearishIsGreen(t, styles)
+	assertBullishIsRedAndBearishIsGreen(t, styles+archiveStyles)
+}
+
+func TestChipBlockOmitsMissingMarginAndZeroNetRows(t *testing.T) {
+	_, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	chips := chipsFixture()
+	chips.MarginChange, chips.ShortChange = nil, nil
+	chips.TrustNet = 0
+	value.StockNews[0].Chips = chips
+	entry := newsEntry(app.renderStockNews(value.StockNews), "n-1001")
+
+	if strings.Contains(entry, "融資") || strings.Contains(entry, "融券") {
+		t.Errorf("absent margin fields rendered a placeholder: %s", entry)
+	}
+	if !strings.Contains(entry, `<span class="chip-bar flat" style="width:0.00%"></span>`) || !strings.Contains(entry, `<span class="chip-val flat">+0 張</span>`) {
+		t.Errorf("zero net row is not rendered as a neutral zero-width bar: %s", entry)
+	}
+	if !strings.Contains(entry, "三大法人 +56,807 張") || !strings.Contains(entry, "資料日期 2026-08-06") {
+		t.Errorf("summary line lost the total or the data date: %s", entry)
+	}
+}
+
+func TestLegacyEntriesRenderNoChipBlock(t *testing.T) {
+	_, app := setupSite(t)
+	legacy := fullReport("2026-08-07")
+	got := app.renderReport(&legacy, navToHistory, "")
+	if strings.Contains(got, "籌碼面") || strings.Contains(got, `class="chips"`) {
+		t.Fatalf("report without chips rendered a chip block: %s", got)
+	}
+}

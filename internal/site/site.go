@@ -189,6 +189,7 @@ func (s *Site) renderStockNews(news []report.StockNews) string {
 		b.WriteString(`</div><div class="news-body md">`)
 		b.WriteString(s.markdown(item.SummaryMD))
 		b.WriteString(s.renderEntryWatch(item.WatchMD))
+		b.WriteString(renderChips(item.Chips))
 		if len(item.Sources) > 0 {
 			b.WriteString(`<div class="srcs"><span class="lbl">來源</span>`)
 			for _, source := range item.Sources {
@@ -211,6 +212,99 @@ func (s *Site) renderEntryWatch(value string) string {
 		return ""
 	}
 	return `<div class="entry-watch"><span class="entry-watch-label">觀察重點</span><div class="md">` + s.markdown(value) + `</div></div>`
+}
+
+// renderChips draws the previous trading day's institutional flows as three
+// bars sized on the server. Widths are relative to the largest absolute value
+// within the entry, so a bar reads as weight against this stock's own biggest
+// mover rather than against the whole market.
+func renderChips(chips *report.Chips) string {
+	if chips == nil {
+		return ""
+	}
+	rows := []struct {
+		name string
+		net  int64
+	}{{"外資", chips.ForeignNet}, {"投信", chips.TrustNet}, {"自營商", chips.DealerNet}}
+	peak := int64(0)
+	for _, row := range rows {
+		if value := absInt64(row.net); value > peak {
+			peak = value
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString(`<div class="chips"><span class="chips-label">籌碼面</span>`)
+	for _, row := range rows {
+		width := 0.0
+		if peak > 0 {
+			width = float64(absInt64(row.net)) / float64(peak) * 100
+		}
+		fmt.Fprintf(&b, `<div class="chip-row"><span class="chip-name">%s</span><span class="chip-track"><span class="chip-bar %s" style="width:%.2f%%"></span></span><span class="chip-val %s">%s</span></div>`,
+			html.EscapeString(row.name), netClass(row.net), width, netClass(row.net), sharesInLots(row.net))
+	}
+	b.WriteString(`<p class="chips-sum">` + chipsFragment(`三大法人 `+sharesInLots(chips.TotalNet)))
+	if chips.MarginChange != nil {
+		b.WriteString(chipsSeparator + chipsFragment(`融資 `+signedLots(*chips.MarginChange)))
+	}
+	if chips.ShortChange != nil {
+		b.WriteString(chipsSeparator + chipsFragment(`融券 `+signedLots(*chips.ShortChange)))
+	}
+	b.WriteString(chipsSeparator + chipsFragment(`資料日期 `+html.EscapeString(chips.Date)) + `</p></div>`)
+	return b.String()
+}
+
+const chipsSeparator = `<span class="chips-sep">・</span>`
+
+// chipsFragment keeps a figure and its label on one line, so a narrow column
+// never splits a date or a lot count across two rows.
+func chipsFragment(text string) string {
+	return `<span class="chips-item">` + text + `</span>`
+}
+
+// netClass reads a flat day as neither side: colouring a zero red would claim
+// net buying that did not happen.
+func netClass(net int64) string {
+	switch {
+	case net > 0:
+		return "up"
+	case net < 0:
+		return "down"
+	default:
+		return "flat"
+	}
+}
+
+// sharesInLots converts a share count to the lots readers are used to seeing.
+func sharesInLots(shares int64) string {
+	return signedLots(int64(math.Round(float64(shares) / 1000)))
+}
+
+func signedLots(lots int64) string {
+	sign := "+"
+	if lots < 0 {
+		sign = ""
+	}
+	return sign + groupThousands(lots) + " 張"
+}
+
+func groupThousands(value int64) string {
+	digits := strconv.FormatInt(value, 10)
+	sign := ""
+	if strings.HasPrefix(digits, "-") {
+		sign, digits = "-", digits[1:]
+	}
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "," + digits[i:]
+	}
+	return sign + digits
+}
+
+func absInt64(value int64) int64 {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func callPresentation(call string) (label, class, triangle string) {

@@ -57,6 +57,20 @@ type StockNews struct {
 	SummaryMD string   `json:"summary_md"`
 	WatchMD   string   `json:"watch_md"`
 	Sources   []Source `json:"sources"`
+	Chips     *Chips   `json:"chips,omitempty"`
+}
+
+// Chips holds the previous trading day's chip figures for one stock. Net
+// values are in shares; margin and short changes are in trading units and use
+// pointers so an absent figure stays distinguishable from a genuine zero.
+type Chips struct {
+	Date         string `json:"date"`
+	ForeignNet   int64  `json:"foreign_net"`
+	TrustNet     int64  `json:"trust_net"`
+	DealerNet    int64  `json:"dealer_net"`
+	TotalNet     int64  `json:"total_net"`
+	MarginChange *int64 `json:"margin_change,omitempty"`
+	ShortChange  *int64 `json:"short_change,omitempty"`
 }
 
 type Source struct {
@@ -103,6 +117,9 @@ func (r Report) Validate() []string {
 		}
 		if strings.TrimSpace(item.WatchMD) == "" {
 			errs = append(errs, fmt.Sprintf("stock_news[%d].watch_md 不得為空", i))
+		}
+		if item.Chips != nil && !validDate(item.Chips.Date) {
+			errs = append(errs, fmt.Sprintf("stock_news[%d].chips.date 必須是有效的 YYYY-MM-DD 日期", i))
 		}
 		if !validCall(item.Call) {
 			errs = append(errs, fmt.Sprintf("stock_news[%d].call 必須是 short_bull、short_bear、long_bull、long_bear 或 none", i))

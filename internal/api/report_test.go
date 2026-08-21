@@ -225,3 +225,70 @@ func TestReportHandlerAcceptsAndOverwritesSameDate(t *testing.T) {
 		t.Fatalf("reports = %d, logs = %+v, notifications = %d", count, logs, notifier.count)
 	}
 }
+
+func chipsReport() report.Report {
+	value := apiReport()
+	margin, short := int64(-18270), int64(9056)
+	value.StockNews[0].Chips = &report.Chips{
+		Date:       "2026-08-06",
+		ForeignNet: 54758664, TrustNet: -15000, DealerNet: 2063215, TotalNet: 56806879,
+		MarginChange: &margin, ShortChange: &short,
+	}
+	return value
+}
+
+func TestReportHandlerRoundTripsChips(t *testing.T) {
+	s, key, _, handler := setupHandler(t)
+	value := chipsReport()
+	if w := request(t, handler, key.Token, value); w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+
+	w := readRequest(t, s, key.Token, value.Date)
+	if w.Code != http.StatusOK {
+		t.Fatalf("read status = %d, body = %s", w.Code, w.Body.String())
+	}
+	var got report.Report
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := value.StockNews[0].Chips
+	chips := got.StockNews[0].Chips
+	if chips == nil {
+		t.Fatalf("chips missing from read response: %s", w.Body.String())
+	}
+	if chips.Date != want.Date || chips.ForeignNet != want.ForeignNet || chips.TrustNet != want.TrustNet ||
+		chips.DealerNet != want.DealerNet || chips.TotalNet != want.TotalNet ||
+		chips.MarginChange == nil || *chips.MarginChange != *want.MarginChange ||
+		chips.ShortChange == nil || *chips.ShortChange != *want.ShortChange {
+		t.Fatalf("chips = %+v, want %+v", chips, want)
+	}
+}
+
+func TestReportHandlerRejectsMalformedChipsDate(t *testing.T) {
+	s, key, notifier, handler := setupHandler(t)
+	value := chipsReport()
+	value.StockNews[0].Chips.Date = "20260806"
+
+	w := request(t, handler, key.Token, value)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "stock_news[0].chips.date") {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	count, _ := s.CountReports(context.Background())
+	logs, _ := s.ListUpdateLogs(context.Background(), 10)
+	if count != 0 || notifier.count != 0 || len(logs) != 1 || logs[0].Action != "ingest_rejected_schema" {
+		t.Fatalf("reports = %d, notifications = %d, logs = %+v", count, notifier.count, logs)
+	}
+}
+
+func TestReportHandlerAcceptsEntriesWithoutChips(t *testing.T) {
+	s, key, _, handler := setupHandler(t)
+	value := apiReport()
+	if w := request(t, handler, key.Token, value); w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	w := readRequest(t, s, key.Token, value.Date)
+	if strings.Contains(w.Body.String(), "chips") {
+		t.Fatalf("read response carries a chips field for an entry without chips: %s", w.Body.String())
+	}
+}
