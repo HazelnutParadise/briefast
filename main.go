@@ -8,6 +8,7 @@ import (
 
 	"github.com/HazelnutParadise/briefast/internal/admin"
 	briefapi "github.com/HazelnutParadise/briefast/internal/api"
+	"github.com/HazelnutParadise/briefast/internal/seo"
 	"github.com/HazelnutParadise/briefast/internal/site"
 	"github.com/HazelnutParadise/briefast/internal/store"
 	sy "github.com/HazelnutParadise/syralit"
@@ -46,11 +47,16 @@ func newHandler(s *store.Store) http.Handler {
 	history := sy.Handler(cfg, public.History)
 	adminHandler := sy.Handler(cfg, adminApp.Page)
 
+	// 公開頁包一層 SEO 中介軟體改寫 head；後台與 API 不套。
+	crawler := seo.Deps{Reports: s, Config: seo.Config{SiteURL: os.Getenv("BRIEFAST_SITE_URL")}}
+
 	mux := http.NewServeMux()
 	mux.Handle("/api/report", briefapi.NewReportHandler(s, public))
 	mux.Handle("/api/report/{date}", briefapi.NewReadHandler(s))
-	mux.Handle("/", home)
-	mux.Handle("/history/", http.StripPrefix("/history", history))
+	mux.Handle("GET /robots.txt", crawler.RobotsHandler())
+	mux.Handle("GET /sitemap.xml", crawler.SitemapHandler())
+	mux.Handle("/", crawler.Middleware(home))
+	mux.Handle("/history/", crawler.Middleware(http.StripPrefix("/history", history)))
 	mux.Handle("/admin/", http.StripPrefix("/admin", adminHandler))
 	mux.HandleFunc("GET /history", trailingSlash("/history/"))
 	mux.HandleFunc("GET /admin", trailingSlash("/admin/"))

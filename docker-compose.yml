@@ -9,6 +9,7 @@ services:
     environment:
       BRIEFAST_ADMIN_PASSWORD: "${BRIEFAST_ADMIN_PASSWORD:-}"
       BRIEFAST_DB_PATH: /app/data/briefast.db
+      BRIEFAST_SITE_URL: "${BRIEFAST_SITE_URL:-}"
     volumes:
       # 資料庫落地位置。預設用 named volume；在 .env 設 BRIEFAST_DATA 為主機路徑即改為 bind mount。
       - ${BRIEFAST_DATA:-briefast-data}:/app/data

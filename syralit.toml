@@ -2,6 +2,8 @@
 # in version control and baked into the container image, not injected at deploy
 # time. Secrets and per-deployment values belong in .env, never here.
 title = "Briefast｜每日產業與股市報告"
+# 文件語言標示，三個 Syralit app 共用。SEO 中介軟體不再負責這一項。
+lang = "zh-Hant-TW"
 host = "0.0.0.0"
 port = 8600
 

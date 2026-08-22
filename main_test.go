@@ -152,3 +152,55 @@ func TestNewsHeadlinesReportEndToEnd(t *testing.T) {
 		t.Fatalf("update logs = %+v, err = %v", logs, err)
 	}
 }
+
+func TestCustomMuxServesCrawlerMetadata(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "briefast.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	handler := newHandler(s)
+
+	get := func(target string) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		req.Host = "briefast.example"
+		req.Header.Set("X-Forwarded-Proto", "https")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		return w
+	}
+
+	robots := get("/robots.txt")
+	if robots.Code != http.StatusOK {
+		t.Fatalf("GET /robots.txt status = %d", robots.Code)
+	}
+	if !strings.Contains(robots.Body.String(), "Sitemap: https://briefast.example/sitemap.xml") {
+		t.Errorf("robots.txt sitemap line missing: %s", robots.Body.String())
+	}
+
+	sitemap := get("/sitemap.xml")
+	if sitemap.Code != http.StatusOK {
+		t.Fatalf("GET /sitemap.xml status = %d", sitemap.Code)
+	}
+	if !strings.Contains(sitemap.Body.String(), "<loc>https://briefast.example/</loc>") {
+		t.Errorf("sitemap home entry missing: %s", sitemap.Body.String())
+	}
+
+	// 公開頁的 head 要被改寫，後台不受影響。
+	home := get("/").Body.String()
+	for _, want := range []string{`lang="zh-Hant-TW"`, `rel="canonical"`, `property="og:title"`} {
+		if !strings.Contains(home, want) {
+			t.Errorf("home page missing %s", want)
+		}
+	}
+	// 後台不經 SEO 中介軟體，語言標示由 syralit.toml 的 lang 提供，所以兩件事要
+	// 同時成立：沒有中繼資料標籤，但仍有正確的語言標示。
+	adminPage := get("/admin/").Body.String()
+	if strings.Contains(adminPage, `rel="canonical"`) {
+		t.Error("admin page was rewritten by the SEO middleware")
+	}
+	if !strings.Contains(adminPage, `lang="zh-Hant-TW"`) {
+		t.Errorf("admin page missing the shell language attribute: %.200s", adminPage)
+	}
+}

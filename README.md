@@ -93,11 +93,13 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Compose 會自動讀取本目錄的 `.env`，不需要額外參數。`syralit.toml` 已包進映像，不必掛載；`.env` 控制的是管理員密碼、對外埠與資料庫落地位置（`BRIEFAST_DATA`，預設為 named volume）。也可以直接注入環境變數：
+Compose 會自動讀取本目錄的 `.env`，不需要額外參數。`syralit.toml` 已包進映像，不必掛載；`.env` 控制的是管理員密碼、站台對外網址、對外埠與資料庫落地位置（`BRIEFAST_DATA`，預設為 named volume）。也可以直接注入環境變數：
 
 ```bash
 BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --build
 ```
+
+`BRIEFAST_SITE_URL` 是站台對外網址，公開頁的 canonical、Open Graph 與 sitemap 用它組出絕對網址。未設定時會依請求的 `Host` 與 `X-Forwarded-Proto` 推導；正式部署請務必設定，因為反向代理沒送 `X-Forwarded-Proto` 時推導結果會退化成 `http`。
 
 `BRIEFAST_PORT` 是主機對外 port，容器內固定使用 8600。資料目錄預設掛 `briefast-data` named volume；在 `.env` 把 `BRIEFAST_DATA` 設成主機路徑即改為 bind mount。主機目錄不需要事先建立或調整權限——容器啟動時會自行建立並把擁有者設為應用使用者，再降權執行，應用程序本身不以 root 執行。無論哪種，重建或重啟容器都不會刪除 reports、API keys 或 update log。網域與 HTTPS 應由外部反向代理處理。
 
