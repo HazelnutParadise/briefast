@@ -204,3 +204,13 @@ func TestCustomMuxServesCrawlerMetadata(t *testing.T) {
 		t.Errorf("admin page missing the shell language attribute: %.200s", adminPage)
 	}
 }
+
+// 位址計算過去完全沒被測試覆蓋——所有測試都以 httptest 直接呼叫 newHandler，
+// 從不經過 ListenAndServe，所以綁定位址退化成 ":0" 時沒有任何測試失敗。
+func TestListenAddressComesFromResolvedConfig(t *testing.T) {
+	got := listenAddr(appConfig())
+
+	if want := "0.0.0.0:8600"; got != want {
+		t.Fatalf("listenAddr() = %q, want %q", got, want)
+	}
+}

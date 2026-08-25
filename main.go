@@ -32,15 +32,25 @@ func run() error {
 	defer s.Close()
 
 	handler := newHandler(s)
-	host, _ := sy.GetOption("server.host").(string)
-	port, _ := sy.GetOption("server.port").(int)
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := listenAddr(appConfig())
 	log.Printf("Briefast listening on http://%s", addr)
 	return http.ListenAndServe(addr, handler)
 }
 
+// appConfig 是全站唯一的設定來源。ResolveConfig 會把 syralit.toml 與內建預設
+// 套進來，這是嵌入模式下取得設定的正確途徑——sy.GetOption 只在 page function
+// 執行期間反映服務中的設定，在這裡呼叫會拿到未解析的零值。
+func appConfig() sy.Config {
+	return sy.ResolveConfig(sy.Config{Title: "Briefast"})
+}
+
+// listenAddr 抽成獨立函式，讓測試不必啟動伺服器就能驗證綁定位址。
+func listenAddr(cfg sy.Config) string {
+	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+}
+
 func newHandler(s *store.Store) http.Handler {
-	cfg := sy.Config{Title: "Briefast"}
+	cfg := appConfig()
 	public := site.New(s)
 	adminApp := admin.New(s)
 	home := sy.Handler(cfg, public.Home)

@@ -3,7 +3,7 @@ module github.com/HazelnutParadise/briefast
 go 1.25.12
 
 require (
-	github.com/HazelnutParadise/syralit v0.9.0
+	github.com/HazelnutParadise/syralit v0.11.0
 	github.com/yuin/goldmark v1.8.2
 	modernc.org/sqlite v1.53.0
 )

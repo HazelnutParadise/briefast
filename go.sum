@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/HazelnutParadise/syralit v0.9.0 h1:uErXsU/naOUdVliNgDUEXRS/HCEgROmHlU6sabkLDCw=
-github.com/HazelnutParadise/syralit v0.9.0/go.mod h1:ycCNE8kjGWcOEcbnEDn0kk2PK7rJOtQ6DK23uFjp9k4=
+github.com/HazelnutParadise/syralit v0.11.0 h1:jfiAqw4UZ6xsH2XzcRY0JGSil9dxdzhkqmBA5tTwPHU=
+github.com/HazelnutParadise/syralit v0.11.0/go.mod h1:ycCNE8kjGWcOEcbnEDn0kk2PK7rJOtQ6DK23uFjp9k4=
 github.com/coder/websocket v1.8.15 h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=
 github.com/coder/websocket v1.8.15/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
