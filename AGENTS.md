@@ -62,9 +62,9 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 - API 每次都從 SQLite 查 key 狀態，撤銷必須立即生效；401 與 400 也要寫 update_log。
 - `syralit.toml` 是進版控的非機密設定，不含 `[secrets]` 區段。它會包進容器映像，不在部署期掛載。機密與部署變數（`BRIEFAST_ADMIN_PASSWORD`、`BRIEFAST_SITE_URL`、`BRIEFAST_PORT`、`BRIEFAST_DATA`）放 repo 根目錄的 `.env`，該檔不進版控，鍵名見 `.env.example`。Compose 會自動讀 `.env`；本機跑 Go 要先自行載入。
 - API key 依已定案需求明文保存並可重複檢視。不得在 log、錯誤訊息或文件範例洩漏真實 token。
-- 文件語言標示由 `syralit.toml` 的 `lang` 提供，三個 Syralit app 共用，中介軟體不得再對 `lang` 做字串替換。這樣即使中繼資料改寫失效，語言標示仍然正確。
-- 公開頁每頁不同的 head 中繼資料（title、description、canonical、Open Graph）由 `internal/seo` 的中介軟體在回應送出前改寫，`/admin/` 與 `/api/` 不套用。中介軟體只緩衝狀態 200 且 Content-Type 為 text/html 的回應，`/_syralit/` 底下的 WebSocket 與 SSE 直通。日後若加入壓縮之類會改寫 body 的中介軟體，必須包在 SEO 中介軟體之外，否則改寫會失效或 Content-Length 會對不上。
-- 固定不變的標籤不要搬到 `Config.HeadHTML`。它沒有 per-request 變體，把固定與動態標籤拆成兩個來源只會讓 head 難追。
+- 文件語言標示由 `syralit.toml` 的 `lang` 提供，三個 Syralit app 共用。
+- 公開頁每頁不同的 head 中繼資料（title、description、canonical、Open Graph）由 `internal/seo` 的 `DocumentFunc` 產生，在 shell 渲染前由框架呼叫，首頁與歷史頁各掛一份，後台不掛所以沒有中繼資料。不要再引入攔截並改寫回應的中介軟體。
+- 公開頁不要呼叫 `sy.PageTitle`。標題由 `DocumentFunc` 在第一個回應寫入，`SetPageConfig` 會在連線後覆蓋它，造成爬蟲與訪客看到不同標題。後台沒有 `DocumentFunc`，`PageTitle` 是它的標題來源。
 - 視覺遵循 `DESIGN.md` 與 benchmark：零圓角、零陰影、規線只到大區塊、台股紅漲綠跌永不反轉、每個公開報告頁都有固定免責聲明。
 - migration 已進版控後視為不可變；資料結構變更新增下一版 migration，不修改既有 migration。
 
@@ -81,4 +81,3 @@ docker compose up -d --build   # 建置與部署，SQLite 放 named volume
 ## Follow-ups
 
 - 正式站在 Cloudflare 後面，目前 `https://briefast.hazelnut-paradise.com/robots.txt` 回傳的是 Cloudflare 的 managed robots.txt（只有 content signals 註解，沒有任何 `User-agent` 或 `Disallow` 指令），`/sitemap.xml` 則是直穿到 origin。部署後要複驗 `/robots.txt` 是否含 origin 的 `Disallow` 與 `Sitemap` 兩行；若沒有，要到 Cloudflare 關掉 managed robots.txt，否則這兩行永遠到不了爬蟲。
-- 前端連上 WebSocket 後，`internal/site` 的 `sy.SetPageConfig(sy.PageTitle(...))` 會把 `document.title` 蓋回固定的站名標題，有執行 JavaScript 的訪客與工具因此看不到該頁專屬標題（爬蟲拿到的仍是伺服器改寫後的正確標題）。修法是讓 `pageConfig` 依當頁報告設定標題。

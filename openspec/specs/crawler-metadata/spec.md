@@ -10,7 +10,7 @@ Public pages are rendered by a framework that pushes content over a realtime cha
 
 Every HTML page the application serves SHALL declare the document language as `zh-Hant-TW`. This includes the admin pages, whose interface is written in Traditional Chinese.
 
-The declaration SHALL come from the application shell itself rather than from the metadata rewriting layer, so that it survives a response the rewriting layer declines to modify.
+The declaration SHALL come from the application shell configuration, so that it applies to every page the framework renders and does not depend on any per-page metadata being produced.
 
 #### Scenario: Home page language attribute
 
@@ -27,42 +27,29 @@ The declaration SHALL come from the application shell itself rather than from th
 - **WHEN** a client requests an admin page
 - **THEN** the response HTML root element carries `lang="zh-Hant-TW"`
 
-#### Scenario: Language survives a declined rewrite
+#### Scenario: Language applies without per-page metadata
 
-- **WHEN** an HTML response contains no `title` element, so the metadata rewriting layer passes the body through unchanged
+- **WHEN** a client requests a page that produces no per-page metadata, such as an admin page
 - **THEN** the response HTML root element still carries `lang="zh-Hant-TW"`
-
-#### Scenario: Rewriting layer leaves the language attribute alone
-
-- **WHEN** the metadata rewriting layer rewrites a page's head
-- **THEN** it replaces only the `title` element and the metadata tags, and performs no substitution on the `lang` attribute
 
 
 <!-- @trace
-source: syralit-shell-lang
-updated: 2026-08-22
+source: drop-head-middleware
+updated: 2026-08-25
 code:
-  - AGENTS.md
-  - internal/seo/seo.go
-  - main.go
-  - docker-compose.yml
-  - README.md
+  - internal/site/site.go
   - internal/seo/meta.go
-  - syralit.toml
-  - internal/seo/endpoints.go
-  - .env.example
-  - go.sum
-  - go.mod
+  - AGENTS.md
   - internal/seo/middleware.go
+  - main.go
 tests:
   - internal/seo/seo_test.go
-  - main_test.go
 -->
 
 ---
 ### Requirement: Each public page carries its own title and description
 
-Public page HTML responses SHALL carry a `title` element and a `meta name="description"` element whose content identifies that specific page.
+Public page HTML responses SHALL carry a `title` element and a `meta name="description"` element whose content identifies that specific page. The title SHALL remain the page's own title after the browser has loaded the application, and SHALL NOT be replaced by a site-wide name.
 
 #### Scenario: Home page reflects the latest report
 
@@ -93,22 +80,22 @@ Public page HTML responses SHALL carry a `title` element and a `meta name="descr
 | A 400-character overview | First 150 characters followed by `…` |
 | Empty overview | Site default description |
 
+#### Scenario: Browser title is not overwritten after connecting
+
+- **WHEN** the browser finishes loading the application on a public page
+- **THEN** the document title is still the title that page was served with
+
 
 <!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
+source: drop-head-middleware
+updated: 2026-08-25
 code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
+  - internal/site/site.go
   - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
   - AGENTS.md
-  - internal/seo/seo.go
+  - internal/seo/middleware.go
+  - main.go
 tests:
-  - main_test.go
   - internal/seo/seo_test.go
 -->
 
@@ -243,55 +230,6 @@ The system SHALL resolve the absolute site base URL used by canonical, Open Grap
 
 - **WHEN** `BRIEFAST_SITE_URL` is unset and no `X-Forwarded-Proto` header is present
 - **THEN** absolute URLs use `https` for a TLS connection and `http` otherwise, together with the request host
-
-
-<!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
-code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
-  - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
-  - AGENTS.md
-  - internal/seo/seo.go
-tests:
-  - main_test.go
-  - internal/seo/seo_test.go
--->
-
----
-### Requirement: Metadata rewriting never disturbs other responses
-
-Head rewriting SHALL apply only to successful HTML responses on public pages and SHALL leave every other response byte-identical.
-
-#### Scenario: Realtime channels pass through
-
-- **WHEN** a request path begins with the framework asset prefix, including the WebSocket and server-sent event endpoints
-- **THEN** the response is passed through without buffering and streaming and connection upgrade remain available
-
-#### Scenario: Non-HTML responses pass through
-
-- **WHEN** a downstream handler responds with a content type other than `text/html`, or with a status other than 200
-- **THEN** the response body is written unchanged
-
-#### Scenario: Unrecognised HTML passes through
-
-- **WHEN** an HTML response contains no `title` element to replace
-- **THEN** the response body is written unchanged
-
-#### Scenario: Content length stays accurate
-
-- **WHEN** an HTML response is rewritten
-- **THEN** the `Content-Length` header equals the byte length of the rewritten body
-
-#### Scenario: Admin and API routes are untouched
-
-- **WHEN** a client requests an admin page or an API endpoint
-- **THEN** the response is identical to the response produced without head rewriting
 
 
 <!-- @trace

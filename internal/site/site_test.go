@@ -554,3 +554,49 @@ func TestLegacyEntriesRenderNoChipBlock(t *testing.T) {
 		t.Fatalf("report without chips rendered a chip block: %s", got)
 	}
 }
+
+// 廣告版位位於個股多空判斷與產業新聞摘要之間——全頁唯一的閱讀斷點。
+func TestReportPageCarriesAdSlotBetweenCallsAndIndustries(t *testing.T) {
+	s, app := setupSite(t)
+	saveReport(t, s, fullReport("2026-08-07"))
+	at := sy.NewAppTest(app.Home)
+	at.Run()
+	got := renderedHTML(t, at)
+
+	for _, want := range []string{adMountID, `data-section="ad"`, "廣告"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report page missing %q", want)
+		}
+	}
+
+	calls := strings.Index(got, `data-section="calls"`)
+	slot := strings.Index(got, `data-section="ad"`)
+	industries := strings.Index(got, `data-section="industries"`)
+	if !(calls < slot && slot < industries) {
+		t.Errorf("ad slot misplaced: calls=%d slot=%d industries=%d", calls, slot, industries)
+	}
+}
+
+func TestPagesWithoutAReportCarryNoAdSlot(t *testing.T) {
+	s, app := setupSite(t)
+
+	waiting := sy.NewAppTest(app.Home)
+	waiting.Run()
+	if strings.Contains(renderedHTML(t, waiting), adMountID) {
+		t.Error("waiting-for-report home page must not carry the ad slot")
+	}
+
+	saveReport(t, s, fullReport("2026-08-07"))
+
+	listing := sy.NewAppTest(func() { app.HistoryPage(1, "") })
+	listing.Run()
+	if strings.Contains(renderedHTML(t, listing), adMountID) {
+		t.Error("history listing must not carry the ad slot")
+	}
+
+	missing := sy.NewAppTest(func() { app.HistoryPage(1, "1999-01-01") })
+	missing.Run()
+	if strings.Contains(renderedHTML(t, missing), adMountID) {
+		t.Error("missing-report page must not carry the ad slot")
+	}
+}

@@ -2,6 +2,7 @@ package seo
 
 import (
 	"context"
+	"html"
 	"net/http"
 	"regexp"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/HazelnutParadise/briefast/internal/report"
 	"github.com/HazelnutParadise/briefast/internal/store"
+	sy "github.com/HazelnutParadise/syralit"
 )
 
 const (
@@ -36,6 +38,24 @@ type Deps struct {
 	Config  Config
 }
 
+// PageKind 指出這一份 DocumentFunc 服務哪一種頁面。歷史頁掛在 StripPrefix 之
+// 後，收到的請求路徑一律是 "/"，所以種類必須由掛載端指定，不能從路徑推斷。
+type PageKind int
+
+const (
+	PageHome PageKind = iota
+	PageHistory
+)
+
+// DocumentFunc 回傳可直接交給 sy.Config.DocumentFunc 的函式。Lang 與 Dir 留空，
+// 讓 syralit.toml 的設定繼續套用到每一頁。
+func (d Deps) DocumentFunc(kind PageKind) func(*http.Request) sy.Document {
+	return func(r *http.Request) sy.Document {
+		meta := d.metaFor(kind, r)
+		return sy.Document{Title: meta.Title, HeadHTML: renderMetaTags(meta)}
+	}
+}
+
 // pageMeta 是單一頁面要寫進 head 的內容。
 type pageMeta struct {
 	Title        string
@@ -46,11 +66,11 @@ type pageMeta struct {
 
 // metaFor 依請求路徑與 date 查詢參數決定這一頁的中繼資料。查詢失敗或查無報告
 // 一律退回站台預設值，不讓中繼資料的問題變成頁面錯誤。
-func (d Deps) metaFor(r *http.Request) pageMeta {
+func (d Deps) metaFor(kind PageKind, r *http.Request) pageMeta {
 	base := d.Config.BaseURL(r)
 	fallback := pageMeta{Title: siteTitle, Description: siteDescription, OGType: "website"}
 
-	if isHistoryPath(r.URL.Path) {
+	if kind == PageHistory {
 		date := strings.TrimSpace(r.URL.Query().Get("date"))
 		if date == "" {
 			return pageMeta{
@@ -87,10 +107,6 @@ func (d Deps) metaFor(r *http.Request) pageMeta {
 	}
 }
 
-func isHistoryPath(path string) bool {
-	return path == "/history" || strings.HasPrefix(path, "/history/")
-}
-
 // descriptionOf 取報告總覽當描述，總覽是空的就退回站台預設描述。
 func descriptionOf(r *report.Report) string {
 	text := truncateRunes(plainText(r.OverviewMD), descriptionLimit)
@@ -98,6 +114,25 @@ func descriptionOf(r *report.Report) string {
 		return siteDescription
 	}
 	return text
+}
+
+// renderMetaTags 產生 Document.HeadHTML。標題不在這裡，由 Document.Title 帶出。
+func renderMetaTags(meta pageMeta) string {
+	title := html.EscapeString(meta.Title)
+	description := html.EscapeString(meta.Description)
+	canonical := html.EscapeString(meta.CanonicalURL)
+
+	var b strings.Builder
+	b.WriteString(`<meta name="description" content="` + description + `">`)
+	b.WriteString("\n" + `<link rel="canonical" href="` + canonical + `">`)
+	b.WriteString("\n" + `<meta property="og:type" content="` + meta.OGType + `">`)
+	b.WriteString("\n" + `<meta property="og:site_name" content="` + siteName + `">`)
+	b.WriteString("\n" + `<meta property="og:title" content="` + title + `">`)
+	b.WriteString("\n" + `<meta property="og:description" content="` + description + `">`)
+	b.WriteString("\n" + `<meta property="og:url" content="` + canonical + `">`)
+	b.WriteString("\n" + `<meta property="og:locale" content="zh_TW">`)
+	b.WriteString("\n" + `<meta name="twitter:card" content="summary">`)
+	return b.String()
 }
 
 var (

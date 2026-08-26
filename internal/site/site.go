@@ -17,6 +17,37 @@ import (
 	"github.com/yuin/goldmark"
 )
 
+// 廣告版位。掛載點寫在版面標記裡，loader script 另由 sy.Embed 承載——sy.HTML
+// 以 innerHTML 插入內容，其中的 script 依規範不會執行。版位夾在當日結論與佐證
+// 細節之間，是全頁唯一的閱讀斷點。第三方渲染的內容外觀不受本專案控制，因此以
+// 規線與標示界定邊界，不讓它混進內文。
+const adMountID = "div-onead-draft"
+
+const adSlot = `<section class="section ad" data-section="ad">` +
+	`<div class="ad-label">廣告</div>` +
+	`<div class="ad-mount" id="` + adMountID + `"></div>` +
+	`</section>`
+
+// adScript 是廣告服務的 loader，交給 sy.Embed 在主文件執行。
+const adScript = `<script type="text/javascript">
+  var custom_call = function (params) {
+      if (params.hasAd) {
+        console.log('TD has AD')
+      } else {
+        console.log('TD AD Empty')
+      }
+    }
+  ONEAD_TEXT = {};
+  ONEAD_TEXT.pub = {};
+  ONEAD_TEXT.pub.uid = "2000662";
+  ONEAD_TEXT.pub.slotobj = document.getElementById("` + adMountID + `");
+  ONEAD_TEXT.pub.player_mode = "text-drive";
+  ONEAD_TEXT.pub.queryAdCallback = custom_call;
+  window.ONEAD_text_pubs = window.ONEAD_text_pubs || [];
+  ONEAD_text_pubs.push(ONEAD_TEXT);
+</script>
+<script src="https://ad-specs.guoshipartners.com/static/js/ad-serv.min.js"></script>`
+
 const Disclaimer = "本報告由 AI 自動彙整公開新聞產生，多空判斷為模型觀點，僅供參考，不構成任何投資建議。投資人應自行判斷並承擔風險。"
 
 type Site struct {
@@ -50,6 +81,13 @@ func (s *Site) Home() {
 		return
 	}
 	sy.HTML(styles + s.renderReport(r, navToHistory, "") + footer())
+	s.embedAd()
+}
+
+// embedAd 以固定 key 掛載 loader：日期切換是整頁導航，會自然重新初始化；而背景
+// 推送新報告觸發的重新渲染會重用節點、不重跑 script，不虛增曝光。
+func (s *Site) embedAd() {
+	sy.Embed(adScript, sy.Key("article-ad"))
 }
 
 func (s *Site) History() {
@@ -78,6 +116,7 @@ func (s *Site) HistoryPage(page int, date string) {
 			notice = archiveNotice(r.Date)
 		}
 		sy.HTML(styles + archiveStyles + s.renderReport(r, navArchiveView, notice) + footer())
+		s.embedAd()
 		return
 	}
 
@@ -95,8 +134,9 @@ func (s *Site) HistoryPage(page int, date string) {
 }
 
 func (s *Site) pageConfig() {
+	// 標題由 internal/seo 的 DocumentFunc 在第一個回應就寫好，這裡不再設定，
+	// 否則連線後會被固定站名覆蓋掉。
 	sy.SetPageConfig(
-		sy.PageTitle("Briefast｜每日產業與股市報告"),
 		sy.PageLayout("wide"),
 		sy.InitialSidebarState("collapsed"),
 	)
@@ -117,6 +157,7 @@ func (s *Site) renderReport(r *report.Report, nav, notice string) string {
 	b.WriteString(s.markdown(r.WatchMD))
 	b.WriteString(`</div></aside></section>`)
 	b.WriteString(renderCalls(r.Calls))
+	b.WriteString(adSlot)
 	b.WriteString(s.renderIndustries(r.Industries))
 	b.WriteString(s.renderStockNews(r.StockNews))
 	b.WriteString(`</main>`)

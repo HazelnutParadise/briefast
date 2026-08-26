@@ -1,20 +1,18 @@
 package seo
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"encoding/xml"
 	"errors"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/HazelnutParadise/briefast/internal/report"
 	"github.com/HazelnutParadise/briefast/internal/store"
+	sy "github.com/HazelnutParadise/syralit"
 )
 
 func TestBaseURLPrefersConfiguredSiteURL(t *testing.T) {
@@ -134,14 +132,14 @@ func sampleReports() stubReports {
 	}
 }
 
-func metaFor(t *testing.T, reports Reports, target string) pageMeta {
+func metaFor(t *testing.T, reports Reports, kind PageKind, target string) pageMeta {
 	t.Helper()
 	deps := Deps{Reports: reports, Config: Config{SiteURL: "https://briefast.example"}}
-	return deps.metaFor(httptest.NewRequest(http.MethodGet, target, nil))
+	return deps.metaFor(kind, httptest.NewRequest(http.MethodGet, target, nil))
 }
 
 func TestMetaForHomeUsesLatestReport(t *testing.T) {
-	meta := metaFor(t, sampleReports(), "/")
+	meta := metaFor(t, sampleReports(), PageHome, "/")
 
 	if want := "台積電領軍收紅，電子權值撐盤｜Briefast"; meta.Title != want {
 		t.Errorf("Title = %q, want %q", meta.Title, want)
@@ -158,7 +156,7 @@ func TestMetaForHomeUsesLatestReport(t *testing.T) {
 }
 
 func TestMetaForDatedReportUsesThatReport(t *testing.T) {
-	meta := metaFor(t, sampleReports(), "/history/?date=2026-08-20")
+	meta := metaFor(t, sampleReports(), PageHistory, "/?date=2026-08-20")
 
 	if want := "金融股走弱拖累大盤｜Briefast 2026-08-20"; meta.Title != want {
 		t.Errorf("Title = %q, want %q", meta.Title, want)
@@ -172,7 +170,7 @@ func TestMetaForDatedReportUsesThatReport(t *testing.T) {
 }
 
 func TestMetaForHistoryListUsesListingCopy(t *testing.T) {
-	meta := metaFor(t, sampleReports(), "/history/")
+	meta := metaFor(t, sampleReports(), PageHistory, "/")
 
 	if want := "歷史報告｜Briefast"; meta.Title != want {
 		t.Errorf("Title = %q, want %q", meta.Title, want)
@@ -193,7 +191,7 @@ func TestMetaDescriptionIsTruncatedWithEllipsis(t *testing.T) {
 	reports := sampleReports()
 	reports.latest = &report.Report{Date: "2026-08-21", Headline: "長篇總覽", OverviewMD: long}
 
-	meta := metaFor(t, reports, "/")
+	meta := metaFor(t, reports, PageHome, "/")
 
 	runes := []rune(meta.Description)
 	if len(runes) != descriptionLimit+1 {
@@ -208,7 +206,7 @@ func TestMetaDescriptionFallsBackWhenOverviewIsEmpty(t *testing.T) {
 	reports := sampleReports()
 	reports.latest = &report.Report{Date: "2026-08-21", Headline: "沒有總覽", OverviewMD: "   \n\n"}
 
-	if got := metaFor(t, reports, "/").Description; got != siteDescription {
+	if got := metaFor(t, reports, PageHome, "/").Description; got != siteDescription {
 		t.Errorf("Description = %q, want site default %q", got, siteDescription)
 	}
 }
@@ -216,8 +214,12 @@ func TestMetaDescriptionFallsBackWhenOverviewIsEmpty(t *testing.T) {
 func TestMetaFallsBackToSiteDefaultsWhenLookupFails(t *testing.T) {
 	broken := stubReports{err: errors.New("database is locked")}
 
-	for _, target := range []string{"/", "/history/?date=2026-08-20"} {
-		meta := metaFor(t, broken, target)
+	for _, tc := range []struct {
+		kind   PageKind
+		target string
+	}{{PageHome, "/"}, {PageHistory, "/?date=2026-08-20"}} {
+		kind, target := tc.kind, tc.target
+		meta := metaFor(t, broken, kind, target)
 		if meta.Title != siteTitle {
 			t.Errorf("%s Title = %q, want %q", target, meta.Title, siteTitle)
 		}
@@ -228,7 +230,7 @@ func TestMetaFallsBackToSiteDefaultsWhenLookupFails(t *testing.T) {
 }
 
 func TestMetaFallsBackWhenDateHasNoReport(t *testing.T) {
-	meta := metaFor(t, sampleReports(), "/history/?date=1999-01-01")
+	meta := metaFor(t, sampleReports(), PageHistory, "/?date=1999-01-01")
 
 	if meta.Title != siteTitle {
 		t.Errorf("Title = %q, want %q", meta.Title, siteTitle)
@@ -238,84 +240,61 @@ func TestMetaFallsBackWhenDateHasNoReport(t *testing.T) {
 	}
 }
 
-const shellHTML = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Briefast</title>
-<link rel="stylesheet" href="/_syralit/assets/runtime.css">
-</head>
-<body>
-<div id="syralit-root"><main id="syralit-app"><p>連線中…</p></main></div>
-</body>
-</html>`
-
-func shellHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(shellHTML))
-	})
-}
-
-func serveThroughMiddleware(t *testing.T, reports Reports, next http.Handler, target string) *httptest.ResponseRecorder {
+// documentFor 走的是正式路徑：依頁面種類建立 DocumentFunc，再以請求呼叫它。
+func documentFor(t *testing.T, reports Reports, kind PageKind, target string) sy.Document {
 	t.Helper()
 	deps := Deps{Reports: reports, Config: Config{SiteURL: "https://briefast.example"}}
-	w := httptest.NewRecorder()
-	deps.Middleware(next).ServeHTTP(w, httptest.NewRequest(http.MethodGet, target, nil))
-	return w
+	return deps.DocumentFunc(kind)(httptest.NewRequest(http.MethodGet, target, nil))
 }
 
-func TestMiddlewareRewritesHeadOfHomePage(t *testing.T) {
-	w := serveThroughMiddleware(t, sampleReports(), shellHandler(), "/")
-	body := w.Body.String()
+func TestDocumentForHomeCarriesLatestReport(t *testing.T) {
+	doc := documentFor(t, sampleReports(), PageHome, "/")
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+	if want := "台積電領軍收紅，電子權值撐盤｜Briefast"; doc.Title != want {
+		t.Errorf("Title = %q, want %q", doc.Title, want)
 	}
 	for _, want := range []string{
-		`<title>台積電領軍收紅，電子權值撐盤｜Briefast</title>`,
 		`<meta name="description" content="台股今日開低走高。">`,
 		`<link rel="canonical" href="https://briefast.example/">`,
 		`<meta property="og:type" content="article">`,
 		`<meta property="og:site_name" content="Briefast">`,
 		`<meta property="og:title" content="台積電領軍收紅，電子權值撐盤｜Briefast">`,
-		`<meta property="og:description" content="台股今日開低走高。">`,
 		`<meta property="og:url" content="https://briefast.example/">`,
 		`<meta property="og:locale" content="zh_TW">`,
 		`<meta name="twitter:card" content="summary">`,
 	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("body missing %s", want)
+		if !strings.Contains(doc.HeadHTML, want) {
+			t.Errorf("HeadHTML missing %s", want)
 		}
 	}
-}
-
-// 語言標示改由 syralit 的 shell 設定提供，中介軟體不得再碰它——否則框架設定與
-// 字串替換會互相打架，而且改寫失效時語言標示會跟著消失。
-func TestMiddlewareLeavesLangAttributeAlone(t *testing.T) {
-	body := serveThroughMiddleware(t, sampleReports(), shellHandler(), "/").Body.String()
-
-	if !strings.Contains(body, `<html lang="en">`) {
-		t.Errorf("middleware rewrote the lang attribute: %q", body)
-	}
-	if !strings.Contains(body, `<title>台積電領軍收紅，電子權值撐盤｜Briefast</title>`) {
-		t.Error("title was not rewritten")
+	if strings.Contains(doc.HeadHTML, "<title>") {
+		t.Error("HeadHTML must not carry a title element; Document.Title owns it")
 	}
 }
 
-func TestMiddlewareLeavesBodyUntouched(t *testing.T) {
-	w := serveThroughMiddleware(t, sampleReports(), shellHandler(), "/")
+func TestDocumentForDatedReport(t *testing.T) {
+	doc := documentFor(t, sampleReports(), PageHistory, "/?date=2026-08-20")
 
-	_, originalBody, _ := strings.Cut(shellHTML, "</head>")
-	_, rewrittenBody, _ := strings.Cut(w.Body.String(), "</head>")
-	if rewrittenBody != originalBody {
-		t.Errorf("body after </head> changed:\n got %q\nwant %q", rewrittenBody, originalBody)
+	if want := "金融股走弱拖累大盤｜Briefast 2026-08-20"; doc.Title != want {
+		t.Errorf("Title = %q, want %q", doc.Title, want)
+	}
+	if want := `<link rel="canonical" href="https://briefast.example/history/?date=2026-08-20">`; !strings.Contains(doc.HeadHTML, want) {
+		t.Errorf("canonical missing: %q", doc.HeadHTML)
 	}
 }
 
-func TestMiddlewareEscapesMetadataValues(t *testing.T) {
+func TestDocumentForHistoryList(t *testing.T) {
+	doc := documentFor(t, sampleReports(), PageHistory, "/")
+
+	if want := "歷史報告｜Briefast"; doc.Title != want {
+		t.Errorf("Title = %q, want %q", doc.Title, want)
+	}
+	if !strings.Contains(doc.HeadHTML, `<meta property="og:type" content="website">`) {
+		t.Error("history listing should be og:type website")
+	}
+}
+
+func TestDocumentEscapesMetadataValues(t *testing.T) {
 	reports := sampleReports()
 	reports.latest = &report.Report{
 		Date:       "2026-08-21",
@@ -323,166 +302,29 @@ func TestMiddlewareEscapesMetadataValues(t *testing.T) {
 		OverviewMD: `<script>alert(1)</script> 台股走高。`,
 	}
 
-	body := serveThroughMiddleware(t, reports, shellHandler(), "/").Body.String()
+	doc := documentFor(t, reports, PageHome, "/")
 
-	if strings.Contains(body, "<script>alert(1)</script>") {
+	if strings.Contains(doc.HeadHTML, "<script>alert(1)</script>") {
 		t.Error("description was injected without escaping")
 	}
-	if !strings.Contains(body, "&#34;權值股&#34; 反攻 &amp; 收紅") {
-		t.Errorf("headline was not escaped: %q", body)
+	if !strings.Contains(doc.HeadHTML, "&#34;權值股&#34; 反攻 &amp; 收紅") {
+		t.Errorf("headline was not escaped: %q", doc.HeadHTML)
 	}
 }
 
-func TestMiddlewareRewritesDatedReportPage(t *testing.T) {
-	body := serveThroughMiddleware(t, sampleReports(), shellHandler(), "/history/?date=2026-08-20").Body.String()
+func TestDocumentFallsBackWhenLookupFails(t *testing.T) {
+	doc := documentFor(t, stubReports{err: errors.New("database is locked")}, PageHome, "/")
 
-	if !strings.Contains(body, `<title>金融股走弱拖累大盤｜Briefast 2026-08-20</title>`) {
-		t.Errorf("dated page title missing: %q", body)
-	}
-	if !strings.Contains(body, `<link rel="canonical" href="https://briefast.example/history/?date=2026-08-20">`) {
-		t.Error("dated page canonical missing")
+	if doc.Title != siteTitle {
+		t.Errorf("Title = %q, want %q", doc.Title, siteTitle)
 	}
 }
 
-func TestMiddlewareSkipsFrameworkPaths(t *testing.T) {
-	var wrapped bool
-	probe := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, wrapped = w.(*interceptor)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(shellHTML))
-	})
+func TestDocumentLeavesLangToTheShellConfig(t *testing.T) {
+	doc := documentFor(t, sampleReports(), PageHome, "/")
 
-	for _, target := range []string{"/_syralit/ws", "/history/_syralit/sse", "/_syralit/assets/runtime.js"} {
-		w := serveThroughMiddleware(t, sampleReports(), probe, target)
-		if wrapped {
-			t.Errorf("%s was wrapped by the interceptor", target)
-		}
-		if w.Body.String() != shellHTML {
-			t.Errorf("%s body was modified", target)
-		}
-	}
-}
-
-func TestMiddlewarePassesThroughNonHTMLResponses(t *testing.T) {
-	payload := `{"ok":true}`
-	json := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, _ = w.Write([]byte(payload))
-	})
-
-	w := serveThroughMiddleware(t, sampleReports(), json, "/")
-	if w.Body.String() != payload {
-		t.Errorf("body = %q, want %q", w.Body.String(), payload)
-	}
-}
-
-func TestMiddlewarePassesThroughNonOKResponses(t *testing.T) {
-	notFound := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(shellHTML))
-	})
-
-	w := serveThroughMiddleware(t, sampleReports(), notFound, "/")
-	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want 404", w.Code)
-	}
-	if w.Body.String() != shellHTML {
-		t.Error("404 body was rewritten")
-	}
-}
-
-func TestMiddlewarePassesThroughHTMLWithoutTitle(t *testing.T) {
-	bare := `<!doctype html><html lang="en"><head></head><body>hi</body></html>`
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(bare))
-	})
-
-	w := serveThroughMiddleware(t, sampleReports(), handler, "/")
-	if w.Body.String() != bare {
-		t.Errorf("body = %q, want unchanged", w.Body.String())
-	}
-}
-
-func TestMiddlewareSetsAccurateContentLength(t *testing.T) {
-	w := serveThroughMiddleware(t, sampleReports(), shellHandler(), "/")
-
-	got := w.Header().Get("Content-Length")
-	want := strconv.Itoa(w.Body.Len())
-	if got != want {
-		t.Errorf("Content-Length = %q, want %q", got, want)
-	}
-}
-
-func TestMiddlewareServesDefaultsWhenLookupFails(t *testing.T) {
-	broken := stubReports{err: errors.New("database is locked")}
-
-	w := serveThroughMiddleware(t, broken, shellHandler(), "/")
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	if !strings.Contains(w.Body.String(), "<title>"+siteTitle+"</title>") {
-		t.Errorf("default title missing: %q", w.Body.String())
-	}
-}
-
-// flushRecorder 記錄底層 Flush 有沒有被呼叫到。
-type flushRecorder struct {
-	*httptest.ResponseRecorder
-	flushed bool
-}
-
-func (f *flushRecorder) Flush() { f.flushed = true; f.ResponseRecorder.Flush() }
-
-func TestMiddlewareForwardsFlushAndStopsBuffering(t *testing.T) {
-	streaming := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(shellHTML))
-		w.(http.Flusher).Flush()
-	})
-
-	recorder := &flushRecorder{ResponseRecorder: httptest.NewRecorder()}
-	deps := Deps{Reports: sampleReports(), Config: Config{SiteURL: "https://briefast.example"}}
-	deps.Middleware(streaming).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
-
-	if !recorder.flushed {
-		t.Error("Flush was not forwarded to the underlying writer")
-	}
-	if recorder.Body.String() != shellHTML {
-		t.Error("flushed response was rewritten instead of streamed through")
-	}
-}
-
-// hijackRecorder 讓 WebSocket 升級路徑可測。
-type hijackRecorder struct {
-	*httptest.ResponseRecorder
-	hijacked bool
-}
-
-func (h *hijackRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	h.hijacked = true
-	return nil, nil, nil
-}
-
-func TestMiddlewareForwardsHijack(t *testing.T) {
-	upgrade := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hijacker, ok := w.(http.Hijacker)
-		if !ok {
-			t.Error("wrapped writer does not support hijacking")
-			return
-		}
-		if _, _, err := hijacker.Hijack(); err != nil {
-			t.Errorf("Hijack() error = %v", err)
-		}
-	})
-
-	recorder := &hijackRecorder{ResponseRecorder: httptest.NewRecorder()}
-	deps := Deps{Reports: sampleReports(), Config: Config{SiteURL: "https://briefast.example"}}
-	deps.Middleware(upgrade).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
-
-	if !recorder.hijacked {
-		t.Error("Hijack was not forwarded to the underlying writer")
+	if doc.Lang != "" || doc.Dir != "" {
+		t.Errorf("Lang/Dir should stay empty so syralit.toml applies, got %q/%q", doc.Lang, doc.Dir)
 	}
 }
 

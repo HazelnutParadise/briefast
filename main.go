@@ -53,20 +53,25 @@ func newHandler(s *store.Store) http.Handler {
 	cfg := appConfig()
 	public := site.New(s)
 	adminApp := admin.New(s)
-	home := sy.Handler(cfg, public.Home)
-	history := sy.Handler(cfg, public.History)
-	adminHandler := sy.Handler(cfg, adminApp.Page)
 
-	// 公開頁包一層 SEO 中介軟體改寫 head；後台與 API 不套。
+	// 公開頁各自帶自己的 DocumentFunc 產生每頁中繼資料；後台不帶，因此沒有中繼
+	// 資料，但仍沿用 syralit.toml 的語言設定。
 	crawler := seo.Deps{Reports: s, Config: seo.Config{SiteURL: os.Getenv("BRIEFAST_SITE_URL")}}
+	homeCfg, historyCfg := cfg, cfg
+	homeCfg.DocumentFunc = crawler.DocumentFunc(seo.PageHome)
+	historyCfg.DocumentFunc = crawler.DocumentFunc(seo.PageHistory)
+
+	home := sy.Handler(homeCfg, public.Home)
+	history := sy.Handler(historyCfg, public.History)
+	adminHandler := sy.Handler(cfg, adminApp.Page)
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/report", briefapi.NewReportHandler(s, public))
 	mux.Handle("/api/report/{date}", briefapi.NewReadHandler(s))
 	mux.Handle("GET /robots.txt", crawler.RobotsHandler())
 	mux.Handle("GET /sitemap.xml", crawler.SitemapHandler())
-	mux.Handle("/", crawler.Middleware(home))
-	mux.Handle("/history/", crawler.Middleware(http.StripPrefix("/history", history)))
+	mux.Handle("/", home)
+	mux.Handle("/history/", http.StripPrefix("/history", history))
 	mux.Handle("/admin/", http.StripPrefix("/admin", adminHandler))
 	mux.HandleFunc("GET /history", trailingSlash("/history/"))
 	mux.HandleFunc("GET /admin", trailingSlash("/admin/"))
