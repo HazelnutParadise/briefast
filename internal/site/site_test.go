@@ -126,7 +126,7 @@ func TestHomeEmptyAndLatestReportFixedSectionOrder(t *testing.T) {
 	saveReport(t, s, latest)
 	at.Run()
 	got := renderedHTML(t, at)
-	if !strings.Contains(got, "最新頭條") || !strings.Contains(got, "2026 年 8 月 7 日") || !strings.Contains(got, "07:50 更新") {
+	if !strings.Contains(got, "最新頭條") || !strings.Contains(got, "2026 年 8 月 7 日") || !strings.Contains(got, "07:50 更新") || strings.Contains(got, "開盤前 07:50 更新") {
 		t.Fatalf("latest report masthead missing: %s", got)
 	}
 	sections := []string{`data-section="overview"`, `data-section="watch"`, `data-section="calls"`, `data-section="industries"`, `data-section="stock-news"`}

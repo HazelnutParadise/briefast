@@ -447,5 +447,5 @@ func displayGeneratedAt(value string) string {
 	if err != nil {
 		return value
 	}
-	return "開盤前 " + t.Format("15:04")
+	return t.Format("15:04")
 }
