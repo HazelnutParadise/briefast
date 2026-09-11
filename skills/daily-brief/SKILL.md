@@ -119,7 +119,21 @@ https://www.ctee.com.tw/rss_web/livenews/{分類}
 
 | 來源 | 清單端點 | 內文取得 | 重點 |
 |---|---|---|---|
-| CNBC 頭條 | `https://www.cnbc.com/id/100003114/device/rss/rss.html` | 文章頁一般 HTTP 抓取 | 美國財經與跨界大事 |
+| CNBC 頭條 | `https://www.cnbc.com/id/100003114/device/rss/rss.html` | 文章頁一般 HTTP 抓取，**RSS 與文章頁都必須帶瀏覽器 User-Agent** | 美國財經與跨界大事 |
+
+**CNBC 的請求條件。** CNBC 放在 Akamai 後面，會依 User-Agent 封鎖工具型客戶端：`curl/8.x`、`python-requests`、`Claude-User` 這類 UA 一律回 `403 Access Denied`（回應 server 為 `AkamaiGHost`），與 IP、頻率、cookie 無關。RSS 清單與**每一篇**文章頁的請求都要帶桌面瀏覽器的 User-Agent，用下面這組即可，不必自行猜測：
+
+```bash
+curl --silent --show-error --location \
+  --user-agent 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' \
+  --output cnbc.xml \
+  --write-out '%{http_code}' \
+  'https://www.cnbc.com/id/100003114/device/rss/rss.html'
+```
+
+抓文章頁時換掉網址、沿用同一個 `--user-agent`。若用的不是 curl，就在該工具的請求標頭設定同一字串。RSS 的 `description` 只有一句摘要，不含全文，不能拿摘要代替文章頁。
+
+**CNBC 回 403 時先查標頭，不要直接記失敗：** 確認這次請求有沒有帶上述 User-Agent；沒帶就補上重送。帶了仍回 403 或連線失敗，才算來源失敗，走下方「來源成敗與完整性把關」的重試與分流規則。
 
 本批內容**只寫入 `overview_md` 與產業事件的背景脈絡**，不得建立或支持 `calls` 與 `stock_news` 條目。與台媒報導同一事件時以台媒版本為準，依「去重」一節的跨語言規則處理。
 
@@ -137,7 +151,7 @@ https://www.ctee.com.tw/rss_web/livenews/{分類}
 
 逐一記錄每個來源這次是成功還是失敗。任何來源失敗就重試一次（TWSE 依批次 2 的節流規則等 60 秒再重試），重試後仍失敗的處理方式一致：
 
-- **照常判讀與發布**，用實際抓到的內容組報告。任何單一來源失敗都不會讓整份報告停發，包含鉅亨網——證交所的重大訊息帶公司代號、月營收是硬事實，工商時報與中央社等也涵蓋台股，缺任何一家損失的是覆蓋密度，不是報告的可行性。批次 5 的外電（CNBC）失敗也一樣照常發布：損失的只是國際背景密度，國際動態仍可從台媒報導取得。
+- **照常判讀與發布**，用實際抓到的內容組報告。任何單一來源失敗都不會讓整份報告停發，包含鉅亨網——證交所的重大訊息帶公司代號、月營收是硬事實，工商時報與中央社等也涵蓋台股，缺任何一家損失的是覆蓋密度，不是報告的可行性。批次 5 的外電（CNBC）失敗也一樣照常發布：損失的只是國際背景密度，國際動態仍可從台媒報導取得。CNBC 的「失敗」限定為**已帶瀏覽器 User-Agent** 仍回 403 或連不上；沒帶 User-Agent 造成的 403 是請求寫錯，依批次 5 的規則補上重送，不得記為來源失敗。
 - **在執行回報中逐一列出缺哪些來源與失敗原因**，讓人知道當日的涵蓋程度。這是給操作者看的，不是給讀者看的。
 
 來源成功但當時間窗口內確實沒有新文章，屬於正常情況，不算失敗。
