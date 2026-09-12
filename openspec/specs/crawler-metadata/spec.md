@@ -67,6 +67,17 @@ Public page HTML responses SHALL carry a `title` element and a `meta name="descr
 - **WHEN** a client requests the history list page without a date query parameter
 - **THEN** the title identifies the history listing and the site name
 
+#### Scenario: Conference brief page reflects that brief
+
+- **WHEN** a client requests the conference page with symbol and date query parameters matching a stored brief
+- **THEN** the title contains the company name, the words 法說會前預測, and the site name
+- **AND** the description is derived from the brief's summary text with Markdown markup removed and bounded like report descriptions
+
+#### Scenario: Conference page for an unknown brief
+
+- **WHEN** a client requests the conference page with parameters matching no stored brief
+- **THEN** the title and description fall back to the site defaults and the canonical points at the home page
+
 #### Scenario: Description length is bounded
 
 - **WHEN** a report overview is longer than the description limit
@@ -87,16 +98,34 @@ Public page HTML responses SHALL carry a `title` element and a `meta name="descr
 
 
 <!-- @trace
-source: drop-head-middleware
-updated: 2026-08-25
+source: upcoming-conferences
+updated: 2026-09-12
 code:
-  - internal/site/site.go
+  - internal/store/migration_v2.sql
+  - internal/site/styles.go
   - internal/seo/meta.go
-  - AGENTS.md
-  - internal/seo/middleware.go
   - main.go
+  - DESIGN.md
+  - AGENTS.md
+  - internal/seo/endpoints.go
+  - internal/site/conference.go
+  - internal/api/conference.go
+  - internal/report/conference.go
+  - internal/site/site.go
+  - internal/store/conference.go
+  - internal/store/store.go
+  - skills/daily-brief/SKILL.md
+  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
 tests:
+  - internal/site/conference_test.go
+  - internal/store/conference_test.go
+  - main_test.go
+  - internal/report/conference_test.go
+  - internal/site/site_test.go
   - internal/seo/seo_test.go
+  - internal/api/conference_test.go
+  - internal/report/skill_example_test.go
+  - internal/store/store_test.go
 -->
 
 ---
@@ -174,7 +203,7 @@ tests:
 ---
 ### Requirement: Site serves a sitemap covering every report
 
-The system SHALL serve `/sitemap.xml` listing the home page, the history list page, and every stored report.
+The system SHALL serve `/sitemap.xml` listing the home page, the history list page, every stored report, and every stored conference brief page.
 
 #### Scenario: Sitemap lists stored reports
 
@@ -182,33 +211,51 @@ The system SHALL serve `/sitemap.xml` listing the home page, the history list pa
 - **THEN** the response status is 200 with content type `application/xml`
 - **AND** the body is a `urlset` containing one entry per stored report, each with a `lastmod` value
 
+#### Scenario: Sitemap lists conference brief pages
+
+- **WHEN** a client requests `/sitemap.xml` and conference briefs exist
+- **THEN** the body contains one entry per stored brief at the conference page URL with symbol and date query parameters, each with a `lastmod` taken from the brief's updated time
+
 #### Scenario: Sitemap with no reports
 
-- **WHEN** a client requests `/sitemap.xml` and no reports exist
+- **WHEN** a client requests `/sitemap.xml` and no reports or briefs exist
 - **THEN** the response is a valid `urlset` containing the home page and the history list page only
 
 #### Scenario: Sitemap query failure
 
-- **WHEN** the report listing query fails
+- **WHEN** the report listing query or the conference listing query fails
 - **THEN** the response status is 500 and no partial XML document is written
 
 
 <!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
+source: upcoming-conferences
+updated: 2026-09-12
 code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
+  - internal/store/migration_v2.sql
+  - internal/site/styles.go
   - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
+  - main.go
+  - DESIGN.md
   - AGENTS.md
-  - internal/seo/seo.go
+  - internal/seo/endpoints.go
+  - internal/site/conference.go
+  - internal/api/conference.go
+  - internal/report/conference.go
+  - internal/site/site.go
+  - internal/store/conference.go
+  - internal/store/store.go
+  - skills/daily-brief/SKILL.md
+  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
 tests:
+  - internal/site/conference_test.go
+  - internal/store/conference_test.go
   - main_test.go
+  - internal/report/conference_test.go
+  - internal/site/site_test.go
   - internal/seo/seo_test.go
+  - internal/api/conference_test.go
+  - internal/report/skill_example_test.go
+  - internal/store/store_test.go
 -->
 
 ---

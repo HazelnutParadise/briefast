@@ -24,7 +24,7 @@ func TestCustomMuxMountsSyralitPagesAndReportAPI(t *testing.T) {
 	defer s.Close()
 	handler := newHandler(s)
 
-	for _, path := range []string{"/", "/history/", "/admin/"} {
+	for _, path := range []string{"/", "/history/", "/admin/", "/conference/", "/conference/?symbol=2330&date=2026-10-16"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
@@ -38,6 +38,12 @@ func TestCustomMuxMountsSyralitPagesAndReportAPI(t *testing.T) {
 	handler.ServeHTTP(w, req)
 	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/history/" {
 		t.Fatalf("GET /history status = %d, location = %q", w.Code, w.Header().Get("Location"))
+	}
+	req = httptest.NewRequest(http.MethodGet, "/conference", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/conference/" {
+		t.Fatalf("GET /conference status = %d, location = %q", w.Code, w.Header().Get("Location"))
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/report", nil)
@@ -60,6 +66,25 @@ func TestCustomMuxMountsSyralitPagesAndReportAPI(t *testing.T) {
 	handler.ServeHTTP(w, req)
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST /api/report/{date} status = %d", w.Code)
+	}
+
+	// 法說會三個端點都掛在 API 層：錯誤方法回 405、缺 key 回 401，不落到首頁 HTML。
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{http.MethodGet, "/api/conference", http.StatusMethodNotAllowed},
+		{http.MethodPost, "/api/conference", http.StatusUnauthorized},
+		{http.MethodPost, "/api/conference/settle", http.StatusUnauthorized},
+		{http.MethodGet, "/api/conferences", http.StatusUnauthorized},
+		{http.MethodPost, "/api/conferences", http.StatusMethodNotAllowed},
+	} {
+		req = httptest.NewRequest(tc.method, tc.path, nil)
+		w = httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		if w.Code != tc.want || !strings.Contains(w.Header().Get("Content-Type"), "application/json") {
+			t.Fatalf("%s %s status = %d, content type = %q, want %d", tc.method, tc.path, w.Code, w.Header().Get("Content-Type"), tc.want)
+		}
 	}
 }
 

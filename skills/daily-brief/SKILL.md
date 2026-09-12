@@ -5,7 +5,7 @@ description: Prepare and publish Briefast's daily pre-market industry and Taiwan
 
 # Briefast 每日晨報
 
-每個交易日開盤前依序完成以下四步。只送內容，禁止產生或呼叫 Artifact DSL。
+每個交易日開盤前依序完成以下五步。只送內容，禁止產生或呼叫 Artifact DSL。
 
 ## 執行前檢查
 
@@ -49,7 +49,7 @@ curl --silent --show-error \
   "${BRIEFAST_URL%/}/api/report/2026-08-06"
 ```
 
-日期從台北時區的前一個交易日起算，回 `404` 就再往前一天，最多往前查 5 天。取到 `200` 就以 `previous.json` 的 `generated_at` 為窗口起點；5 天內都是 `404`（首次執行或長假後）就以過去 24 小時為窗口。`401` 比照第 4 步處理，停止並回報。
+日期從台北時區的前一個交易日起算，回 `404` 就再往前一天，最多往前查 5 天。取到 `200` 就以 `previous.json` 的 `generated_at` 為窗口起點；5 天內都是 `404`（首次執行或長假後）就以過去 24 小時為窗口。`401` 比照第 5 步處理，停止並回報。
 
 ### 分批蒐集
 
@@ -410,7 +410,204 @@ jq -r --arg s 6488 '.[] | select(.SecuritiesCompanyCode==$s) | [.MarginPurchaseB
 
 若個股有重大新聞但方向不明，只在 `stock_news` 建立 `call: "none"` 的條目，不得放入四個 calls 清單。不要為了填滿欄位硬做判斷；沒有判斷的清單可保持空陣列。
 
-## 3. 組成並驗證報告 JSON
+## 3. 法說會排程與會前報告
+
+判讀完成後、組報告之前，處理法說會：登記新公告的自辦場次並寫會前報告，再為已過會期的場次回填結算。這一步的產出走獨立端點，不進第 4 步的報告 JSON；報告的 `watch_md` 仍可自行提到「某公司某日法說」。
+
+### 偵測法說會公告
+
+法說會公告就在批次 2 已存檔的重大訊息裡：`符合條款` 為「第12款」的條目。上市檔（`t187ap04_L`）與上櫃檔（`mopsfin_t187ap04_O`）各篩一次，用 jq 查存檔、不整份進 context：
+
+```bash
+# 上市：欄位名「主旨 」結尾帶一個半形空格，照抄
+jq -c '.[] | select(.["符合條款"] | test("12款")) | {symbol: .["公司代號"], name: .["公司名稱"], subject: .["主旨 "], detail: .["說明"]}' t187ap04_L.json
+# 上櫃
+jq -c '.[] | select(.["符合條款"] | test("12款")) | {symbol: .SecuritiesCompanyCode, name: .CompanyName, subject: .["主旨"], detail: .["說明"]}' mopsfin_t187ap04_O.json
+```
+
+`說明` 欄有固定格式，逐項解析：
+
+| 標籤 | 解析成 | 規則 |
+|---|---|---|
+| `1.召開法人說明會之日期：` | `held_on` | 民國換西元（`115/09/16` 即 2026-09-16）；出現 `~` 的日期區間不登記 |
+| `2.召開法人說明會之時間：` | `held_at` | `14 時 00 分` 正規化成 `14:00`；沒寫就空字串 |
+| `3.召開法人說明會之地點：` | `venue` | 照抄 |
+| `4.法人說明會擇要訊息：` | 分類與 `headline` 材料 | 見下方自辦判斷 |
+
+**本步要寫下：** 上市與上櫃各找到幾則第 12 款。
+
+### 只登記公司自辦場次
+
+券商每季辦投資論壇邀請數十家公司各講半小時，公司也要發第 12 款公告，但講的都是已公開數字，市場不為它定價，會前沒有材料可寫。只登記公司自辦場次，判斷規則：
+
+主旨與擇要訊息**都不含**下列任一字串，且日期是單一日期，才是自辦：`受邀`、`應…之邀`（「應」與「邀」之間夾機構名，例如「應瑞銀證券之邀請」）、`邀請`、`參加`、`論壇`、`Summit`、`Conference`、`投資論壇`。
+
+| 主旨或擇要訊息 | 日期欄 | 分類 |
+|---|---|---|
+| 說明本公司2026年第二季財務暨營運概況 | 115/09/16 | 自辦，登記 |
+| 本公司受邀參加群益證券舉辦之法人說明會 | 115/09/11 | 受邀，略過 |
+| 公告本公司將於115年09月11日舉行法人說明會 | 115/09/11 | 自辦，登記 |
+| 2026/9/11受邀參加CLSA; 2026/9/16受邀參加KeyBanc | 115/09/11 ~ 115/10/13 | 受邀且為區間，略過 |
+
+自辦場次再過兩道濾網：`held_on` 早於台北時區今天的不登記；先查一次已登記清單，已在 `upcoming` 且日期、時間、地點都相同的不重送（重送會覆寫報告內容並多一筆紀錄，沒有意義）。日期、時間或地點有變才重送。
+
+```bash
+curl --silent --show-error \
+  --output conferences.json \
+  --write-out '%{http_code}' \
+  --header "Authorization: Bearer ${BRIEFAST_API_KEY}" \
+  "${BRIEFAST_URL%/}/api/conferences"
+```
+
+回應有兩個陣列：`upcoming`（今天起的場次，含 `symbol`、`name`、`market`、`held_on`、`held_at`、`prediction`、`announced_on`）與 `pending_settlement`（已過會期、尚未結算的場次）。`401` 比照第 5 步處理，停止並回報。
+
+**本步要寫下：** 自辦幾則、受邀幾則、已登記略過幾則、本次要新登記幾則。
+
+### 法說會基本面參考資料
+
+為每一場要登記的場次抓月營收與最新季損益。四類資料集整包存檔，jq 按代號取值，不整份進 context；證交所請求併入批次 2 的 TWSE 節流序列（序列執行、間隔至少 5 秒），櫃買不受限：
+
+| 資料 | 上市 | 上櫃 |
+|---|---|---|
+| 月營收 | `https://openapi.twse.com.tw/v1/opendata/t187ap05_L` | `https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O` |
+| 季損益（一般業） | `https://openapi.twse.com.tw/v1/opendata/t187ap06_L_ci` | `https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_ci` |
+
+季損益依產業別分檔，一般業是 `_ci`；代號在 `_ci` 查不到就依序改查 `_basi`（金融業）、`_fh`（金控）、`_ins`（保險）、`_bd`（證券期貨）、`_mim`（異業），端點只換結尾。
+
+```bash
+# 月營收：資料年月、當月、上月、去年當月、當月累計、去年累計（單位：千元）
+jq -r --arg s 2330 '.[] | select(.["公司代號"]==$s) | [.["資料年月"],.["營業收入-當月營收"],.["營業收入-上月營收"],.["營業收入-去年當月營收"],.["累計營業收入-當月累計營收"],.["累計營業收入-去年累計營收"]] | @tsv' t187ap05_L.json
+# 季損益：年度、季別、營業收入、營業利益、本期淨利、基本每股盈餘
+jq -r --arg s 2330 '.[] | select(.["公司代號"]==$s) | [.["年度"],.["季別"],.["營業收入"],.["營業利益（損失）"],.["本期淨利（淨損）"],.["基本每股盈餘（元）"]] | @tsv' t187ap06_L_ci.json
+# 上櫃檔的代號欄叫 SecuritiesCompanyCode，其餘欄位名相同
+```
+
+填進 `fundamentals`：`revenue.month` 由民國年月換成 `YYYY-MM`（`11508` 即 2026-08），五個金額去逗號取整數；`quarter.label` 寫成「2026Q2 累計」——**這個資料集只有最新一季的累計數**（`季別` 為 2 就是上半年累計），沒有單季數，也沒有前一季或去年同季。因此：
+
+- 月營收的三項比較（較上月、較去年同月、累計較去年）一律要算、要在 `summary_md` 寫出方向是變好還是變壞。
+- 相對前一季或去年同季的季損益比較，**只有本次抓到的新聞或公告載明那些數字時才寫**，並把該來源放進 `sources`；沒有就整句省略，不得憑記憶補值。
+- 代號在某個資料集查不到（新上市、金融業查錯檔等）就省略對應的 `revenue` 或 `quarter` 物件，不填零值；缺漏列入執行回報。
+
+昨收與籌碼沿用第 1 步已存檔的資料，按代號取值，`chips` 的填法與市場別規則同「籌碼面參考資料」。
+
+**本步要寫下：** 四類資料集各取得幾筆與資料期間，哪些代號查無。
+
+### 組會前報告並 POST
+
+每一場新登記的場次組一份 brief。欄位名稱與型別不得改動，不得加入額外欄位；`fundamentals`、`fundamentals.revenue`、`fundamentals.quarter`、`chips` 是選填區塊，沒有就整塊不寫：
+
+```json
+{
+  "symbol": "2330",
+  "name": "台積電",
+  "market": "twse",
+  "held_on": "2026-10-16",
+  "held_at": "14:00",
+  "venue": "線上法說會",
+  "announced_on": "2026-10-10",
+  "prediction": "bull",
+  "headline": "營收連三月年增且外資升評，法說可望上修全年展望",
+  "summary_md": "**判斷：會後看漲。** 8 月營收較上月成長 2.7%、較去年同月成長 1.5%，累計營收較去年同期仍下滑 5.3%，但單月已連續三個月轉正，顯示第三季需求回溫。2026Q2 累計 EPS 0.38 元。10/9 新聞載明外資調升目標價，籌碼面外資（10/9）買超 5.5 萬張。與當日晨報的短線判斷時間尺度不同：晨報看的是當日新聞，這裡看的是法說會後第一個交易日。",
+  "watch_md": "- 法說會是否維持全年營收成長展望\n- 第四季毛利率指引是否高於第三季",
+  "fundamentals": {
+    "revenue": {
+      "month": "2026-08",
+      "current": 13744103,
+      "prev_month": 13382706,
+      "last_year_month": 13535929,
+      "ytd": 85211435,
+      "last_year_ytd": 90000000
+    },
+    "quarter": {
+      "label": "2026Q2 累計",
+      "revenue": 71289957,
+      "operating_income": 5170177,
+      "net_income": 4569799,
+      "eps": "0.38"
+    }
+  },
+  "chips": {
+    "date": "2026-10-09",
+    "foreign_net": 54758664,
+    "trust_net": -15000,
+    "dealer_net": 2063215,
+    "total_net": 56806879,
+    "margin_change": -18270,
+    "short_change": 9056
+  },
+  "sources": [
+    {
+      "title": "8 月營收公告",
+      "url": "https://example.com/revenue"
+    },
+    {
+      "title": "外資調升目標價報導",
+      "url": "https://example.com/upgrade"
+    }
+  ],
+  "generated_at": "2026-10-10T07:50:00+08:00"
+}
+```
+
+寫法規則：
+
+- `prediction` 只有 `bull`（會後看漲）、`bear`（會後看跌）、`none`（無法判斷）三值，判斷的是**法說會後第一個交易日收盤相對會前一日收盤的方向**。依據來自基本面方向、該公司在本次時間窗口內的新聞，籌碼只作佐證。抓到的材料撐不起方向就填 `none`，`summary_md` 首句改寫為什麼無法判斷；不要為了填欄位硬給方向。
+- `summary_md` 判斷先行：首句寫結論，接著依序寫月營收三項比較與方向、最新季累計數與標籤、新聞依據。引用紀律同個股條目：只能用本次抓到的資料，每個數字標期間、來源放進 `sources`。
+- 同一檔在當日報告可能有短線 call，與這裡的預測互不牽制；兩者都有時在 `summary_md` 點明時間尺度不同。
+- `watch_md` 列 1 到 3 條法說會預期會釐清的具體事項。
+- `market` 依代號所屬市場填 `twse` 或 `tpex`，`chips` 只能從同市場的存檔取值。
+
+送出每一份 brief，回應照第 5 步的 status 規則處理，`200` 時確認 body 含本場的 `symbol` 與 `held_on`：
+
+```bash
+curl --silent --show-error \
+  --output brief-response.json \
+  --write-out '%{http_code}' \
+  --request POST \
+  --header "Authorization: Bearer ${BRIEFAST_API_KEY}" \
+  --header "Content-Type: application/json" \
+  --data-binary @brief-2330-2026-10-16.json \
+  "${BRIEFAST_URL%/}/api/conference"
+```
+
+**本步要寫下：** 每一場的 POST status 與結果。
+
+### 會後結算
+
+`conferences.json` 的 `pending_settlement` 每一筆都要嘗試結算。結算需要會前最後一個交易日與會後第一個交易日的收盤價，從個股日成交資訊取得，一次回一個月：
+
+| 市場 | 端點 | 收盤欄位 |
+|---|---|---|
+| 上市 | `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={YYYYMM}01&stockNo={代號}&response=json` | `data[][6]`，日期 `data[][0]` 為民國格式 |
+| 上櫃 | `https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock?code={代號}&date={YYYY}/{MM}/01&response=json` | `tables[0].data[][6]`，日期 `tables[0].data[][0]` 為民國格式 |
+
+`{YYYYMM}` 用 `held_on` 所在月份；`held_on` 的次日落在下個月（月底法說）就再抓下個月一次。上市請求併入 TWSE 節流序列。收盤價去逗號取數。
+
+取值：`pre_close` 是日期**嚴格早於** `held_on` 的最後一個交易日收盤，`post_close` 是日期**嚴格晚於** `held_on` 的第一個交易日收盤，各自帶日期。回應裡還沒有會後交易日（法說會才剛過）就不送，留待下次執行，並列入執行回報。
+
+| held_on | 回應裡的交易日 | pre_close_date | post_close_date | 要抓的月份 |
+|---|---|---|---|---|
+| 2026-10-16 | 10-15、10-16、10-19 | 2026-10-15 | 2026-10-19 | 2026-10 |
+| 2026-09-30 | 09-29、09-30、10-01 | 2026-09-29 | 2026-10-01 | 2026-09 與 2026-10 |
+
+```bash
+curl --silent --show-error \
+  --output settle-response.json \
+  --write-out '%{http_code}' \
+  --request POST \
+  --header "Authorization: Bearer ${BRIEFAST_API_KEY}" \
+  --header "Content-Type: application/json" \
+  --data '{"symbol":"2330","held_on":"2026-10-16","pre_close_date":"2026-10-15","pre_close":1080,"post_close_date":"2026-10-19","post_close":1095}' \
+  "${BRIEFAST_URL%/}/api/conference/settle"
+```
+
+命中與否由網站依存好的預測判定，回應的 `outcome` 是 `hit`、`miss` 或空字串（預測為 `none`）。`404` 表示該場未登記，記入執行回報不重試；其餘 status 照第 5 步處理。
+
+結算機制、待結算清單與結果只進執行回報，不得寫進當日報告內容。
+
+**本步要寫下：** 每一筆待結算場次的處理結果（已結算與 outcome、留待下次、抓取失敗）。
+
+## 4. 組成並驗證報告 JSON
 
 輸出必須符合以下完整結構。欄位名稱與型別不得改動，不得加入額外欄位。
 
@@ -515,11 +712,13 @@ jq -r --arg s 6488 '.[] | select(.SecuritiesCompanyCode==$s) | [.MarginPurchaseB
 - 昨收價抓取有回報筆數與資料日期；報告中引用的昨收價都標明價格日期、且來自本次通過日期驗證的資料；沒有任何 calls 或 stock_news 條目只以價格變動為依據。
 - 籌碼面四個來源都有回報筆數與資料日期；每個 `chips` 的數值都來自本次通過日期驗證的存檔、市場別對應正確、`date` 與該存檔的資料日期一致；報告中引用的籌碼數字都標明資料日期；沒有任何 calls 或 stock_news 條目只以籌碼變動為依據。
 - 報告內容沒有提到來源清單、批次結構或任何來源缺漏。
-- 記得在第 4 步 POST 之前，先用 `GET /api/report/{date}` 確認本次 `date` 是否已有報告；已有就完成產業數與個股數比對。
+- 記得在第 5 步 POST 之前，先用 `GET /api/report/{date}` 確認本次 `date` 是否已有報告；已有就完成產業數與個股數比對。
+- 第 3 步已完成：第 12 款條目已篩過並分類、自辦場次已登記或確認已登記、每份 brief 的 POST status 已記錄、`pending_settlement` 每筆都有處理結果。
+- 每份 brief 的 `prediction` 只用 `bull`、`bear`、`none`；`summary_md` 首句是判斷或無法判斷的理由；月營收三項比較都有寫方向；季損益的前一季或去年同季比較只在有引用來源時出現。
 
 把最終 JSON 寫到本次工作的暫存檔，例如 `report.json`。不得用假 URL 或範例內容發布正式報告。
 
-## 4. POST 到網站 API
+## 5. POST 到網站 API
 
 ### 同日重跑的覆寫比對
 
@@ -540,7 +739,7 @@ curl --silent --show-error \
 
 內容變少不一定是錯的，但必須由人判斷，不得讓退化的重跑靜默取代較完整的版本。
 
-`401` 表示 key 無效或已撤銷，比照第 4 步的 `401` 處理：停止，不要重試或更換 key。
+`401` 表示 key 無效或已撤銷，比照第 5 步的 `401` 處理：停止，不要重試或更換 key。
 
 ### 送出
 

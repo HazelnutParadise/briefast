@@ -43,7 +43,7 @@ func putReport(t *testing.T, s *Store, r report.Report) {
 func TestMigrationsAndPragmas(t *testing.T) {
 	s := openTestStore(t)
 	var version int
-	if err := s.DB().QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 1 {
+	if err := s.DB().QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 2 {
 		t.Fatalf("migration version = %d, err = %v", version, err)
 	}
 	for name, want := range map[string]int{"foreign_keys": 1, "busy_timeout": 5000} {

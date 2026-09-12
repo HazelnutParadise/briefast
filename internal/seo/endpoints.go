@@ -3,6 +3,7 @@ package seo
 import (
 	"encoding/xml"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -37,8 +38,8 @@ type sitemapURLSet struct {
 	URLs    []sitemapURL `xml:"url"`
 }
 
-// SitemapHandler 回傳涵蓋首頁、歷史列表與每一份報告的 sitemap。報告一天一份，
-// 全量輸出仍遠低於 sitemap 的筆數上限，不需要分頁。
+// SitemapHandler 回傳涵蓋首頁、歷史列表、每一份報告與每一場法說會報告頁的
+// sitemap。報告一天一份、法說會一天數場，全量輸出仍遠低於筆數上限，不需分頁。
 func (d Deps) SitemapHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -59,6 +60,12 @@ func (d Deps) SitemapHandler() http.Handler {
 			}
 		}
 
+		conferences, err := d.Reports.ListConferences(ctx)
+		if err != nil {
+			http.Error(w, "無法產生 sitemap", http.StatusInternalServerError)
+			return
+		}
+
 		base := d.Config.BaseURL(r)
 		newest := ""
 		if len(reports) > 0 {
@@ -75,6 +82,13 @@ func (d Deps) SitemapHandler() http.Handler {
 			set.URLs = append(set.URLs, sitemapURL{
 				Loc:     base + "/history/?date=" + item.date,
 				LastMod: lastModOf(item),
+			})
+		}
+
+		for _, item := range conferences {
+			set.URLs = append(set.URLs, sitemapURL{
+				Loc:     base + "/conference/?symbol=" + url.QueryEscape(item.Symbol) + "&date=" + url.QueryEscape(item.HeldOn),
+				LastMod: item.UpdatedAt.UTC().Format(time.RFC3339),
 			})
 		}
 

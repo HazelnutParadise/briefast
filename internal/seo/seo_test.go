@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/HazelnutParadise/briefast/internal/report"
 	"github.com/HazelnutParadise/briefast/internal/store"
@@ -69,11 +70,35 @@ func TestBaseURLFallsBackToTLSConnectionScheme(t *testing.T) {
 
 // stubReports 讓中繼資料組裝的失敗路徑可測，*store.Store 無法製造查詢錯誤。
 type stubReports struct {
-	latest  *report.Report
-	byDate  map[string]*report.Report
-	summary []store.ReportSummary
-	count   int
-	err     error
+	latest      *report.Report
+	byDate      map[string]*report.Report
+	summary     []store.ReportSummary
+	count       int
+	conferences []store.Conference
+	err         error
+}
+
+func (s stubReports) ConferenceByKey(_ context.Context, symbol, heldOn string) (*store.Conference, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	for i := range s.conferences {
+		if s.conferences[i].Symbol == symbol && s.conferences[i].HeldOn == heldOn {
+			return &s.conferences[i], nil
+		}
+	}
+	return nil, store.ErrNotFound
+}
+
+func (s stubReports) ListConferences(context.Context) ([]store.ConferenceSummary, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	var out []store.ConferenceSummary
+	for _, c := range s.conferences {
+		out = append(out, c.ConferenceSummary)
+	}
+	return out, nil
 }
 
 func (s stubReports) LatestReport(context.Context) (*report.Report, error) {
@@ -129,6 +154,61 @@ func sampleReports() stubReports {
 			{Date: "2026-08-20", Headline: older.Headline, GeneratedAt: "2026-08-20T00:30:00Z"},
 		},
 		count: 2,
+		conferences: []store.Conference{{
+			ConferenceSummary: store.ConferenceSummary{Symbol: "2330", Name: "台積電", HeldOn: "2026-10-16", UpdatedAt: time.Date(2026, 10, 10, 0, 30, 0, 0, time.UTC)},
+			Brief:             report.Conference{Symbol: "2330", Name: "台積電", HeldOn: "2026-10-16", SummaryMD: "## 判斷\n\n營收**連三月**年增，法說可望上修。"},
+		}},
+	}
+}
+
+func TestMetaForConferenceUsesThatBrief(t *testing.T) {
+	meta := metaFor(t, sampleReports(), PageConference, "/?symbol=2330&date=2026-10-16")
+	if want := "台積電 法說會前預測｜Briefast 2026-10-16"; meta.Title != want {
+		t.Errorf("Title = %q, want %q", meta.Title, want)
+	}
+	if want := "營收連三月年增，法說可望上修。"; meta.Description != want {
+		t.Errorf("Description = %q, want %q", meta.Description, want)
+	}
+	if want := "https://briefast.example/conference/?symbol=2330&date=2026-10-16"; meta.CanonicalURL != want {
+		t.Errorf("CanonicalURL = %q, want %q", meta.CanonicalURL, want)
+	}
+	if meta.OGType != "article" {
+		t.Errorf("OGType = %q, want article", meta.OGType)
+	}
+	long := sampleReports()
+	long.conferences[0].Brief.SummaryMD = strings.Repeat("市", 400)
+	if runes := []rune(metaFor(t, long, PageConference, "/?symbol=2330&date=2026-10-16").Description); len(runes) != descriptionLimit+1 || runes[len(runes)-1] != '…' {
+		t.Errorf("conference description not bounded: %d runes", len(runes))
+	}
+}
+
+func TestMetaFallsBackWhenConferenceUnknown(t *testing.T) {
+	for _, target := range []string{"/?symbol=9999&date=2026-01-01", "/", "/?symbol=2330"} {
+		meta := metaFor(t, sampleReports(), PageConference, target)
+		if meta.Title != siteTitle || meta.Description != siteDescription || meta.CanonicalURL != "https://briefast.example/" {
+			t.Errorf("%s fallback wrong: %+v", target, meta)
+		}
+	}
+	broken := stubReports{err: errors.New("database is locked")}
+	if meta := metaFor(t, broken, PageConference, "/?symbol=2330&date=2026-10-16"); meta.Title != siteTitle {
+		t.Errorf("lookup failure Title = %q", meta.Title)
+	}
+}
+
+func TestSitemapListsConferenceBriefPages(t *testing.T) {
+	w := serveEndpoint(t, sampleReports(), Deps.SitemapHandler, "/sitemap.xml")
+	doc := parseSitemap(t, w.Body.String())
+	found := false
+	for _, u := range doc.URLs {
+		if u.Loc == "https://briefast.example/conference/?symbol=2330&date=2026-10-16" {
+			found = true
+			if u.LastMod != "2026-10-10T00:30:00Z" {
+				t.Errorf("lastmod = %q, want the brief updated time", u.LastMod)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("sitemap missing the conference page: %+v", doc.URLs)
 	}
 }
 

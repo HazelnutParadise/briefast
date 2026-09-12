@@ -35,7 +35,7 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 
 每日產業與股市新聞報告網站。兩個組成部分都放在這個 repo：
 
-1. **Syralit 網站**（Go）：以固定版面顯示最新與歷史報告，提供 `/admin/` 管理 API key 與更新紀錄，透過 `POST /api/report` 接收完整報告 JSON。
+1. **Syralit 網站**（Go）：以固定版面顯示最新與歷史報告，提供 `/admin/` 管理 API key 與更新紀錄，透過 `POST /api/report` 接收完整報告 JSON。另有法說會會前報告：`POST /api/conference` 登記、`POST /api/conference/settle` 回填會後結算、`GET /api/conferences` 查未來與待結算場次；首頁在有未來場次時多一個「近期法說會」區塊，`/conference/?symbol=&date=` 是單場報告頁。
 2. **每日流程 skill**：`skills/daily-brief/SKILL.md` 給 Claude Cowork 執行「蒐集新聞 → 判讀多空 → 組報告 JSON → POST」流程。
 
 報告版面寫死在 Go 程式，agent 只能提供內容。專案不使用 Artifact Canvas 或 Artifact DSL。
@@ -43,10 +43,10 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 ## 架構
 
 - `main.go`：開啟 `data/briefast.db`，用自訂 `http.ServeMux` 掛載 API 與三個 Syralit app。
-- `internal/report/`：報告型別與驗證。
-- `internal/store/`：modernc.org/sqlite 資料層、啟動 migration、reports／api_keys／update_log。
-- `internal/api/`：Bearer 驗證、原子 ingest、拒絕留痕、live update 通知。
-- `internal/site/`：首頁、歷史頁、固定五區塊與 FT 系規線版面。
+- `internal/report/`：報告與法說會 brief 的型別與驗證，含結算命中規則與台北日期。
+- `internal/store/`：modernc.org/sqlite 資料層、啟動 migration（依序套用 schema.sql 與 migration_v2.sql）、reports／api_keys／update_log／conferences。
+- `internal/api/`：Bearer 驗證、原子 ingest、拒絕留痕、live update 通知；法說會三個端點在 conference.go。
+- `internal/site/`：首頁、歷史頁、固定五區塊與 FT 系規線版面；法說會區塊與報告頁在 conference.go。
 - `internal/admin/`：後台登入、明文 key 建立／檢視／撤銷、更新紀錄。
 
 ## 必用 skill
@@ -59,6 +59,7 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 - Import 慣例：`import sy "github.com/HazelnutParadise/syralit"`。
 - 報告更新一律走 `POST /api/report` 與有效 Bearer key，不新增未驗證的更新端點。
 - 同日報告採全量覆寫；report upsert 與 `ingest_ok` log 必須在同一 transaction。
+- 法說會以 (symbol, held_on) 為鍵；brief 重送只覆寫 brief 欄位、不動結算欄位，結算只寫結算欄位並由伺服器依存好的 prediction 算 outcome（持平算落空、none 不計）。首頁「近期法說會」只在首頁、只在有 held_on >= 台北今天的場次時出現，歷史檢視不渲染。
 - API 每次都從 SQLite 查 key 狀態，撤銷必須立即生效；401 與 400 也要寫 update_log。
 - `syralit.toml` 是進版控的非機密設定，不含 `[secrets]` 區段。它會包進容器映像，不在部署期掛載。機密與部署變數（`BRIEFAST_ADMIN_PASSWORD`、`BRIEFAST_SITE_URL`、`BRIEFAST_PORT`、`BRIEFAST_DATA`）放 repo 根目錄的 `.env`，該檔不進版控，鍵名見 `.env.example`。Compose 會自動讀 `.env`；本機跑 Go 要先自行載入。
 - API key 依已定案需求明文保存並可重複檢視。不得在 log、錯誤訊息或文件範例洩漏真實 token。

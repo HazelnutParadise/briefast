@@ -57,23 +57,31 @@ func newHandler(s *store.Store) http.Handler {
 	// 公開頁各自帶自己的 DocumentFunc 產生每頁中繼資料；後台不帶，因此沒有中繼
 	// 資料，但仍沿用 syralit.toml 的語言設定。
 	crawler := seo.Deps{Reports: s, Config: seo.Config{SiteURL: os.Getenv("BRIEFAST_SITE_URL")}}
-	homeCfg, historyCfg := cfg, cfg
+	homeCfg, historyCfg, conferenceCfg := cfg, cfg, cfg
 	homeCfg.DocumentFunc = crawler.DocumentFunc(seo.PageHome)
 	historyCfg.DocumentFunc = crawler.DocumentFunc(seo.PageHistory)
+	conferenceCfg.DocumentFunc = crawler.DocumentFunc(seo.PageConference)
 
 	home := sy.Handler(homeCfg, public.Home)
 	history := sy.Handler(historyCfg, public.History)
+	conference := sy.Handler(conferenceCfg, public.Conference)
 	adminHandler := sy.Handler(cfg, adminApp.Page)
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/report", briefapi.NewReportHandler(s, public))
 	mux.Handle("/api/report/{date}", briefapi.NewReadHandler(s))
+	conferences := briefapi.NewConferenceHandler(s, public)
+	mux.Handle("/api/conference", conferences.Ingest())
+	mux.Handle("/api/conference/settle", conferences.Settle())
+	mux.Handle("/api/conferences", conferences.List())
 	mux.Handle("GET /robots.txt", crawler.RobotsHandler())
 	mux.Handle("GET /sitemap.xml", crawler.SitemapHandler())
 	mux.Handle("/", home)
 	mux.Handle("/history/", http.StripPrefix("/history", history))
+	mux.Handle("/conference/", http.StripPrefix("/conference", conference))
 	mux.Handle("/admin/", http.StripPrefix("/admin", adminHandler))
 	mux.HandleFunc("GET /history", trailingSlash("/history/"))
+	mux.HandleFunc("GET /conference", trailingSlash("/conference/"))
 	mux.HandleFunc("GET /admin", trailingSlash("/admin/"))
 	return mux
 }

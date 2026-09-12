@@ -54,6 +54,8 @@ type Site struct {
 	store   *store.Store
 	version *sy.SharedVar[int]
 	md      goldmark.Markdown
+	// now decides "today" for the upcoming-conferences cut-off; tests pin it.
+	now func() time.Time
 }
 
 func New(s *store.Store) *Site {
@@ -61,6 +63,7 @@ func New(s *store.Store) *Site {
 		store:   s,
 		version: sy.Shared("briefast-report-version", 0),
 		md:      goldmark.New(),
+		now:     time.Now,
 	}
 }
 
@@ -80,7 +83,7 @@ func (s *Site) Home() {
 		sy.Error("無法載入報告")
 		return
 	}
-	sy.HTML(styles + s.renderReport(r, navToHistory, "") + footer())
+	sy.HTML(styles + s.renderReport(r, navToHistory, "", s.renderConferences()) + footer())
 	s.embedAd()
 }
 
@@ -115,7 +118,7 @@ func (s *Site) HistoryPage(page int, date string) {
 		if latestDate, lerr := s.store.LatestReportDate(context.Background()); lerr == nil && r.Date < latestDate {
 			notice = archiveNotice(r.Date)
 		}
-		sy.HTML(styles + archiveStyles + s.renderReport(r, navArchiveView, notice) + footer())
+		sy.HTML(styles + archiveStyles + s.renderReport(r, navArchiveView, notice, "") + footer())
 		s.embedAd()
 		return
 	}
@@ -142,7 +145,9 @@ func (s *Site) pageConfig() {
 	)
 }
 
-func (s *Site) renderReport(r *report.Report, nav, notice string) string {
+// renderReport lays out the five fixed sections; conferences, when non-empty,
+// slots in after the calls and before the advertisement on the homepage only.
+func (s *Site) renderReport(r *report.Report, nav, notice, conferences string) string {
 	var b strings.Builder
 	b.WriteString(masthead(reportDateLine(r), nav))
 	b.WriteString(notice)
@@ -157,6 +162,7 @@ func (s *Site) renderReport(r *report.Report, nav, notice string) string {
 	b.WriteString(s.markdown(r.WatchMD))
 	b.WriteString(`</div></aside></section>`)
 	b.WriteString(renderCalls(r.Calls))
+	b.WriteString(conferences)
 	b.WriteString(adSlot)
 	b.WriteString(s.renderIndustries(r.Industries))
 	b.WriteString(s.renderStockNews(r.StockNews))

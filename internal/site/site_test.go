@@ -221,7 +221,7 @@ func industryEvent(got, headline string) string {
 func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
 	_, app := setupSite(t)
 	current := fullReport("2026-08-07")
-	got := app.renderReport(&current, navToHistory, "")
+	got := app.renderReport(&current, navToHistory, "", "")
 	if count := strings.Count(got, `class="entry-watch"`); count != 6 {
 		t.Fatalf("entry watch blocks = %d, want 6", count)
 	}
@@ -247,7 +247,7 @@ func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
 	for i := range legacy.StockNews {
 		legacy.StockNews[i].WatchMD = ""
 	}
-	legacyHTML := app.renderReport(&legacy, navToHistory, "")
+	legacyHTML := app.renderReport(&legacy, navToHistory, "", "")
 	if strings.Contains(legacyHTML, `class="entry-watch"`) || strings.Contains(legacyHTML, "觀察重點") {
 		t.Fatalf("legacy report rendered an entry watch placeholder: %s", legacyHTML)
 	}
@@ -549,7 +549,7 @@ func TestChipBlockOmitsMissingMarginAndZeroNetRows(t *testing.T) {
 func TestLegacyEntriesRenderNoChipBlock(t *testing.T) {
 	_, app := setupSite(t)
 	legacy := fullReport("2026-08-07")
-	got := app.renderReport(&legacy, navToHistory, "")
+	got := app.renderReport(&legacy, navToHistory, "", "")
 	if strings.Contains(got, "籌碼面") || strings.Contains(got, `class="chips"`) {
 		t.Fatalf("report without chips rendered a chip block: %s", got)
 	}

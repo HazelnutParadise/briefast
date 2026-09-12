@@ -4,6 +4,7 @@ import (
 	"context"
 	"html"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"unicode"
@@ -30,6 +31,8 @@ type Reports interface {
 	ReportByDate(ctx context.Context, date string) (*report.Report, error)
 	ListReports(ctx context.Context, page, pageSize int) ([]store.ReportSummary, error)
 	CountReports(ctx context.Context) (int, error)
+	ConferenceByKey(ctx context.Context, symbol, heldOn string) (*store.Conference, error)
+	ListConferences(ctx context.Context) ([]store.ConferenceSummary, error)
 }
 
 // Deps 是套件對外的相依組合，robots、sitemap 與 head 改寫都從這裡取用。
@@ -45,6 +48,7 @@ type PageKind int
 const (
 	PageHome PageKind = iota
 	PageHistory
+	PageConference
 )
 
 // DocumentFunc 回傳可直接交給 sy.Config.DocumentFunc 的函式。Lang 與 Dir 留空，
@@ -90,6 +94,30 @@ func (d Deps) metaFor(kind PageKind, r *http.Request) pageMeta {
 			Title:        found.Headline + "｜" + siteName + " " + found.Date,
 			Description:  descriptionOf(found),
 			CanonicalURL: base + "/history/?date=" + found.Date,
+			OGType:       "article",
+		}
+	}
+
+	if kind == PageConference {
+		// 查無就把 canonical 指回首頁，不回寫使用者帶進來的參數。
+		fallback.CanonicalURL = base + "/"
+		symbol := strings.TrimSpace(r.URL.Query().Get("symbol"))
+		date := strings.TrimSpace(r.URL.Query().Get("date"))
+		if symbol == "" || date == "" {
+			return fallback
+		}
+		found, err := d.Reports.ConferenceByKey(r.Context(), symbol, date)
+		if err != nil || found == nil {
+			return fallback
+		}
+		description := truncateRunes(plainText(found.Brief.SummaryMD), descriptionLimit)
+		if description == "" {
+			description = siteDescription
+		}
+		return pageMeta{
+			Title:        found.Brief.Name + " 法說會前預測｜" + siteName + " " + found.HeldOn,
+			Description:  description,
+			CanonicalURL: base + "/conference/?symbol=" + url.QueryEscape(found.Symbol) + "&date=" + url.QueryEscape(found.HeldOn),
 			OGType:       "article",
 		}
 	}

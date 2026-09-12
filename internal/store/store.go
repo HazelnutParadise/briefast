@@ -20,6 +20,13 @@ import (
 //go:embed schema.sql
 var migrationV1 string
 
+//go:embed migration_v2.sql
+var migrationV2 string
+
+// migrations are applied in order; a database already at version N only
+// receives the entries after N. Committed entries are never edited.
+var migrations = []string{migrationV1, migrationV2}
+
 var ErrNotFound = errors.New("not found")
 
 type Store struct {
@@ -118,12 +125,13 @@ func (s *Store) migrate(ctx context.Context) error {
 	if err := tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(version), 0) FROM schema_migrations").Scan(&applied); err != nil {
 		return fmt.Errorf("read schema version: %w", err)
 	}
-	if applied < 1 {
-		if _, err := tx.ExecContext(ctx, migrationV1); err != nil {
-			return fmt.Errorf("apply migration 1: %w", err)
+	for i := applied; i < len(migrations); i++ {
+		version := i + 1
+		if _, err := tx.ExecContext(ctx, migrations[i]); err != nil {
+			return fmt.Errorf("apply migration %d: %w", version, err)
 		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations(version, applied_at) VALUES(1, ?)", formatTime(s.now())); err != nil {
-			return fmt.Errorf("record migration 1: %w", err)
+		if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)", version, formatTime(s.now())); err != nil {
+			return fmt.Errorf("record migration %d: %w", version, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
