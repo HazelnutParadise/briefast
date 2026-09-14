@@ -40,6 +40,8 @@ func TestReportValidateIndustryEventsAndStockHeadline(t *testing.T) {
 		{name: "empty events", edit: func(r *Report) { r.Industries[0].Events = nil }, want: "industries[0].events"},
 		{name: "event headline missing", edit: func(r *Report) { r.Industries[0].Events[1].Headline = " \t\n" }, want: "industries[0].events[1].headline"},
 		{name: "event summary missing", edit: func(r *Report) { r.Industries[0].Events[1].SummaryMD = " \r\n" }, want: "industries[0].events[1].summary_md"},
+		{name: "generated_at offset without colon", edit: func(r *Report) { r.GeneratedAt = "2026-09-14T07:50:27+0800" }, want: "generated_at"},
+		{name: "generated_at empty", edit: func(r *Report) { r.GeneratedAt = "" }, want: "generated_at"},
 		{name: "stock headline missing", edit: func(r *Report) { r.StockNews[0].Headline = " " }, want: "stock_news[0].headline"},
 	}
 

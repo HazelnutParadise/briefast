@@ -449,9 +449,20 @@ func displayDate(value string) string {
 }
 
 func displayGeneratedAt(value string) string {
-	t, err := time.Parse(time.RFC3339, value)
-	if err != nil {
+	t, ok := parseGeneratedAt(value)
+	if !ok {
 		return value
 	}
 	return t.Format("15:04")
+}
+
+// parseGeneratedAt also accepts offsets without a colon (+0800) so reports
+// stored before generated_at was validated still display correctly.
+func parseGeneratedAt(value string) (time.Time, bool) {
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05-0700"} {
+		if t, err := time.Parse(layout, value); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }

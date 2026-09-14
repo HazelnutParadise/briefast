@@ -66,7 +66,7 @@ tests:
 ---
 ### Requirement: Report schema validation
 
-The API SHALL validate the request body against the report schema before persisting. On any violation the API SHALL respond 400 with a JSON body containing ok=false and an errors array describing every violation, and SHALL NOT persist any part of the report. The rejected attempt SHALL be recorded in the update log with a rejected-schema action. Validation SHALL enforce at minimum: date matches YYYY-MM-DD; headline, overview_md, and watch_md are non-empty; every call entry value is one of short_bull, short_bear, long_bull, long_bear, none; every source has a url; every industries entry and every stock_news entry carries a non-empty watch_md; every industries entry carries at least one event; every event carries a non-empty headline and a non-empty summary_md; every stock_news entry carries a non-empty headline. Each violation message SHALL identify the offending entry by index so an agent can locate it without guessing.
+The API SHALL validate the request body against the report schema before persisting. On any violation the API SHALL respond 400 with a JSON body containing ok=false and an errors array describing every violation, and SHALL NOT persist any part of the report. The rejected attempt SHALL be recorded in the update log with a rejected-schema action. Validation SHALL enforce at minimum: date matches YYYY-MM-DD; generated_at is an RFC 3339 timestamp carrying a timezone offset in the colon form such as +08:00; headline, overview_md, and watch_md are non-empty; every call entry value is one of short_bull, short_bear, long_bull, long_bear, none; every source has a url; every industries entry and every stock_news entry carries a non-empty watch_md; every industries entry carries at least one event; every event carries a non-empty headline and a non-empty summary_md; every stock_news entry carries a non-empty headline. Each violation message SHALL identify the offending entry by index so an agent can locate it without guessing.
 
 A stock_news entry SHALL accept an optional chips object carrying the previous trading day's chip data: date (chip data date), foreign_net, trust_net, dealer_net, and total_net (net buy/sell in shares, integers, negative for net sell), and optional margin_change and short_change (margin and short balance change in trading units, integers, negative for decrease). An absent or null chips object SHALL be accepted. When chips is present, validation SHALL enforce that its date matches YYYY-MM-DD, with the violation message identifying the stock_news index. Reports stored without chips SHALL remain readable and valid.
 
@@ -74,6 +74,11 @@ A stock_news entry SHALL accept an optional chips object carrying the previous t
 
 - **WHEN** a payload has an empty headline and a malformed date
 - **THEN** the API responds 400 with both violations listed in errors and no report row is persisted
+
+#### Scenario: Generated_at without colon offset rejected
+
+- **WHEN** a payload carries generated_at 2026-09-14T07:50:27+0800
+- **THEN** the API responds 400 with a violation naming generated_at and no report row is persisted
 
 #### Scenario: Missing watch points rejected
 
@@ -107,17 +112,15 @@ A stock_news entry SHALL accept an optional chips object carrying the previous t
 
 
 <!-- @trace
-source: add-stock-chip-data
-updated: 2026-08-21
+source: fix-generated-at-format
+updated: 2026-09-14
 code:
-  - internal/site/styles.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
+  - internal/site/conference.go
   - internal/report/schema.go
+  - internal/site/site.go
 tests:
-  - internal/site/site_test.go
-  - internal/api/report_test.go
   - internal/report/schema_test.go
+  - internal/site/site_test.go
 -->
 
 ---

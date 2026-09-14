@@ -83,6 +83,9 @@ func (r Report) Validate() []string {
 	if !validDate(r.Date) {
 		errs = append(errs, "date 必須是有效的 YYYY-MM-DD 日期")
 	}
+	if _, err := time.Parse(time.RFC3339, r.GeneratedAt); err != nil {
+		errs = append(errs, "generated_at 必須是含時區的 RFC 3339 時間")
+	}
 	if strings.TrimSpace(r.Headline) == "" {
 		errs = append(errs, "headline 不得為空")
 	}

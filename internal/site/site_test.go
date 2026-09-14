@@ -112,6 +112,19 @@ func renderedHTML(t *testing.T, at *sy.AppTest) string {
 	return value
 }
 
+func TestHomeMastheadAcceptsOffsetWithoutColon(t *testing.T) {
+	s, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	value.GeneratedAt = "2026-08-07T07:50:27+0800"
+	saveReport(t, s, value)
+	at := sy.NewAppTest(app.Home)
+	at.Run()
+	got := renderedHTML(t, at)
+	if !strings.Contains(got, "07:50 更新") || strings.Contains(got, "+0800") {
+		t.Fatalf("masthead generated_at not formatted: %s", got)
+	}
+}
+
 func TestHomeEmptyAndLatestReportFixedSectionOrder(t *testing.T) {
 	s, app := setupSite(t)
 	at := sy.NewAppTest(app.Home)

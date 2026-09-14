@@ -291,8 +291,8 @@ func shortDate(value string) string {
 }
 
 func displayGeneratedFull(value string) string {
-	t, err := time.Parse(time.RFC3339, value)
-	if err != nil {
+	t, ok := parseGeneratedAt(value)
+	if !ok {
 		return value
 	}
 	return t.Format("2006-01-02 15:04")
