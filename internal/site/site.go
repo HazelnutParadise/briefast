@@ -187,6 +187,9 @@ func (s *Site) renderMarketOutlook(outlook *report.MarketOutlook) string {
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="market-outlook"><div class="market-outlook-head"><h3>今日大盤走勢預測</h3><strong class="market-direction ` + tone + `">` + label + `</strong></div>`)
+	if outlook.TrajectoryChart != nil {
+		b.WriteString(renderMarketTrajectoryChart(outlook.TrajectoryChart, tone))
+	}
 	if outlook.TrajectoryMD != nil && strings.TrimSpace(*outlook.TrajectoryMD) != "" {
 		b.WriteString(`<div class="market-outlook-path"><span class="market-outlook-label">預期走法</span><div class="market-outlook-path-body md">`)
 		b.WriteString(s.markdown(*outlook.TrajectoryMD))
@@ -196,6 +199,65 @@ func (s *Site) renderMarketOutlook(outlook *report.MarketOutlook) string {
 	b.WriteString(s.markdown(outlook.SummaryMD))
 	b.WriteString(`</div></div></div>`)
 	return b.String()
+}
+
+func renderMarketTrajectoryChart(chart *report.MarketTrajectoryChart, tone string) string {
+	phases := []struct {
+		name  string
+		level string
+		x     int
+	}{
+		{"開盤", chart.Open, 50},
+		{"盤中", chart.Midday, 150},
+		{"尾盤", chart.Close, 250},
+	}
+	var b strings.Builder
+	b.WriteString(`<figure class="market-chart"><figcaption class="market-outlook-label">預期走勢示意</figcaption>`)
+	b.WriteString(`<div class="market-chart-stages">`)
+	for _, phase := range phases {
+		b.WriteString(`<div><strong>` + phase.name + `</strong><span>` + marketLevelLabel(phase.level) + `</span></div>`)
+	}
+	b.WriteString(`</div><svg viewBox="0 0 300 80" role="img" aria-label="`)
+	for i, phase := range phases {
+		if i > 0 {
+			b.WriteString("，")
+		}
+		b.WriteString(phase.name + "預期在" + marketLevelLabel(phase.level))
+	}
+	b.WriteString(`。情境示意，不代表指數點位或漲跌幅。"><line class="market-chart-baseline" x1="0" y1="40" x2="300" y2="40"/>`)
+	fmt.Fprintf(&b, `<polyline class="market-chart-line" points="50,%d 150,%d 250,%d"/>`,
+		marketLevelY(chart.Open), marketLevelY(chart.Midday), marketLevelY(chart.Close))
+	for i, phase := range phases {
+		class := "market-chart-dot"
+		if i == len(phases)-1 {
+			class += " market-chart-end " + tone
+		}
+		fmt.Fprintf(&b, `<circle class="%s" cx="%d" cy="%d" r="4"/>`, class, phase.x, marketLevelY(phase.level))
+	}
+	b.WriteString(`</svg><p class="market-chart-note">情境示意・相對前收，非點位或漲跌幅</p></figure>`)
+	return b.String()
+}
+
+func marketLevelY(level string) int {
+	switch level {
+	case "above":
+		return 12
+	case "below":
+		return 68
+	default:
+		return 40
+	}
+}
+
+func marketLevelLabel(level string) string {
+	switch level {
+	case "above":
+		return "前收上方"
+	case "below":
+		return "前收下方"
+	default:
+		return "前收附近"
+	}
 }
 
 func renderCalls(calls report.Calls) string {

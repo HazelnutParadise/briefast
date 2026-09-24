@@ -34,9 +34,17 @@ const (
 )
 
 type MarketOutlook struct {
-	Direction    string  `json:"direction"`
-	SummaryMD    string  `json:"summary_md"`
-	TrajectoryMD *string `json:"trajectory_md,omitempty"`
+	Direction       string                 `json:"direction"`
+	SummaryMD       string                 `json:"summary_md"`
+	TrajectoryMD    *string                `json:"trajectory_md,omitempty"`
+	TrajectoryChart *MarketTrajectoryChart `json:"trajectory_chart,omitempty"`
+}
+
+// MarketTrajectoryChart uses only qualitative levels relative to the prior close.
+type MarketTrajectoryChart struct {
+	Open   string `json:"open"`
+	Midday string `json:"midday"`
+	Close  string `json:"close"`
 }
 
 type Calls struct {
@@ -121,6 +129,27 @@ func (r Report) Validate() []string {
 		if outlook.TrajectoryMD != nil && strings.TrimSpace(*outlook.TrajectoryMD) == "" {
 			errs = append(errs, "market_outlook.trajectory_md 不得為空")
 		}
+		if chart := outlook.TrajectoryChart; chart != nil {
+			if outlook.TrajectoryMD == nil || strings.TrimSpace(*outlook.TrajectoryMD) == "" {
+				errs = append(errs, "market_outlook.trajectory_chart 需要非空白 trajectory_md")
+			}
+			for _, phase := range []struct{ name, level string }{
+				{"open", chart.Open}, {"midday", chart.Midday}, {"close", chart.Close},
+			} {
+				if !validMarketLevel(phase.level) {
+					errs = append(errs, "market_outlook.trajectory_chart."+phase.name+" 必須是 above、near 或 below")
+				}
+			}
+			if validMarketLevel(chart.Close) {
+				wrongClose := outlook.Direction == MarketUncertain ||
+					(outlook.Direction == MarketUp && chart.Close != "above") ||
+					(outlook.Direction == MarketDown && chart.Close != "below") ||
+					(outlook.Direction == MarketRange && chart.Close != "near")
+				if wrongClose {
+					errs = append(errs, "market_outlook.trajectory_chart.close 與 direction 不符")
+				}
+			}
+		}
 	}
 	for i, industry := range r.Industries {
 		if len(industry.Events) == 0 {
@@ -182,6 +211,15 @@ func (r Report) Validate() []string {
 func validCall(call string) bool {
 	switch call {
 	case CallShortBull, CallShortBear, CallLongBull, CallLongBear, CallNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func validMarketLevel(level string) bool {
+	switch level {
+	case "above", "near", "below":
 		return true
 	default:
 		return false

@@ -239,3 +239,38 @@ func TestReportValidateMarketTrajectory(t *testing.T) {
 		t.Fatalf("legacy outlook rejected: %v", errs)
 	}
 }
+
+func TestReportValidateMarketTrajectoryChart(t *testing.T) {
+	path := "開盤偏高，盤中可能回到前收附近，尾盤若權值股轉強則收紅。"
+	for _, tc := range []struct {
+		name      string
+		direction string
+		chart     MarketTrajectoryChart
+		valid     bool
+	}{
+		{"up", MarketUp, MarketTrajectoryChart{"above", "near", "above"}, true},
+		{"down", MarketDown, MarketTrajectoryChart{"near", "below", "below"}, true},
+		{"range", MarketRange, MarketTrajectoryChart{"above", "below", "near"}, true},
+		{"missing midday", MarketUp, MarketTrajectoryChart{"above", "", "above"}, false},
+		{"invalid level", MarketUp, MarketTrajectoryChart{"higher", "near", "above"}, false},
+		{"contradictory close", MarketUp, MarketTrajectoryChart{"above", "near", "below"}, false},
+		{"uncertain with chart", MarketUncertain, MarketTrajectoryChart{"near", "near", "near"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := validReport()
+			r.MarketOutlook = &MarketOutlook{Direction: tc.direction, SummaryMD: "新聞與籌碼綜合判斷", TrajectoryMD: &path, TrajectoryChart: &tc.chart}
+			errs := strings.Join(r.Validate(), "\n")
+			if tc.valid && errs != "" {
+				t.Fatalf("valid chart rejected: %s", errs)
+			}
+			if !tc.valid && !strings.Contains(errs, "market_outlook.trajectory_chart") {
+				t.Fatalf("invalid chart accepted: %s", errs)
+			}
+		})
+	}
+	r := validReport()
+	r.MarketOutlook = &MarketOutlook{Direction: MarketUp, SummaryMD: "新聞偏多", TrajectoryChart: &MarketTrajectoryChart{Open: "above", Midday: "near", Close: "above"}}
+	if errs := strings.Join(r.Validate(), "\n"); !strings.Contains(errs, "market_outlook.trajectory_chart") {
+		t.Fatalf("chart without trajectory accepted: %s", errs)
+	}
+}

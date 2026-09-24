@@ -67,6 +67,9 @@ func TestSkillDailyReportExampleValidatesMarketOutlook(t *testing.T) {
 	if r.MarketOutlook == nil || r.MarketOutlook.TrajectoryMD == nil || strings.TrimSpace(*r.MarketOutlook.TrajectoryMD) == "" {
 		t.Fatal("daily report example has no market trajectory")
 	}
+	if r.MarketOutlook.TrajectoryChart == nil {
+		t.Fatal("daily report example has no market trajectory chart")
+	}
 	if errs := r.Validate(); len(errs) != 0 {
 		t.Fatalf("example fails validation: %v", errs)
 	}
@@ -100,6 +103,9 @@ func TestReadmeReportExampleValidates(t *testing.T) {
 	}
 	if r.MarketOutlook == nil || r.MarketOutlook.TrajectoryMD == nil || strings.TrimSpace(*r.MarketOutlook.TrajectoryMD) == "" {
 		t.Fatal("README example has no market trajectory")
+	}
+	if r.MarketOutlook.TrajectoryChart == nil {
+		t.Fatal("README example has no market trajectory chart")
 	}
 	if errs := r.Validate(); len(errs) != 0 {
 		t.Fatalf("example fails validation: %v", errs)

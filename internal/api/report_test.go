@@ -298,7 +298,8 @@ func TestReportHandlerMarketOutlookRoundTrip(t *testing.T) {
 	s, key, _, handler := setupHandler(t)
 	value := apiReport()
 	trajectory := "開盤偏高，盤中若台積電轉弱則回吐，尾盤觀察權值股。"
-	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與籌碼支持偏多", TrajectoryMD: &trajectory}
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與籌碼支持偏多", TrajectoryMD: &trajectory,
+		TrajectoryChart: &report.MarketTrajectoryChart{Open: "above", Midday: "near", Close: "above"}}
 	if w := request(t, handler, key.Token, value); w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -312,6 +313,36 @@ func TestReportHandlerMarketOutlookRoundTrip(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got.MarketOutlook, value.MarketOutlook) {
 		t.Fatalf("outlook = %+v, want %+v", got.MarketOutlook, value.MarketOutlook)
+	}
+}
+
+func TestReportHandlerRejectsInvalidMarketTrajectoryCharts(t *testing.T) {
+	trajectory := "開盤偏高，盤中震盪，尾盤偏紅。"
+	for _, tc := range []struct {
+		name      string
+		direction string
+		path      *string
+		chart     report.MarketTrajectoryChart
+	}{
+		{"missing phase", report.MarketUp, &trajectory, report.MarketTrajectoryChart{Open: "above", Close: "above"}},
+		{"unsupported level", report.MarketUp, &trajectory, report.MarketTrajectoryChart{Open: "above", Midday: "high", Close: "above"}},
+		{"contradictory close", report.MarketUp, &trajectory, report.MarketTrajectoryChart{Open: "above", Midday: "near", Close: "below"}},
+		{"without trajectory", report.MarketUp, nil, report.MarketTrajectoryChart{Open: "above", Midday: "near", Close: "above"}},
+		{"uncertain with chart", report.MarketUncertain, &trajectory, report.MarketTrajectoryChart{Open: "near", Midday: "near", Close: "near"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, key, notifier, handler := setupHandler(t)
+			value := apiReport()
+			value.MarketOutlook = &report.MarketOutlook{Direction: tc.direction, SummaryMD: "新聞與籌碼", TrajectoryMD: tc.path, TrajectoryChart: &tc.chart}
+			w := request(t, handler, key.Token, value)
+			if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "market_outlook.trajectory_chart") {
+				t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+			}
+			count, err := s.CountReports(context.Background())
+			if err != nil || count != 0 || notifier.count != 0 {
+				t.Fatalf("reports = %d, notifications = %d, err = %v", count, notifier.count, err)
+			}
+		})
 	}
 }
 

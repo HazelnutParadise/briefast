@@ -618,7 +618,8 @@ func TestMarketOutlookRendersOnHomeAndHistory(t *testing.T) {
 	s, app := setupSite(t)
 	value := fullReport("2026-08-07")
 	trajectory := "開盤可能偏高，盤中若權值股續強則延續；若轉弱則回吐，尾盤觀察是否守穩。"
-	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與前一交易日籌碼偏多，仍須留意法說。", TrajectoryMD: &trajectory}
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與前一交易日籌碼偏多，仍須留意法說。", TrajectoryMD: &trajectory,
+		TrajectoryChart: &report.MarketTrajectoryChart{Open: "above", Midday: "near", Close: "above"}}
 	saveReport(t, s, value)
 	for name, page := range map[string]func(){
 		"home":    app.Home,
@@ -628,13 +629,13 @@ func TestMarketOutlookRendersOnHomeAndHistory(t *testing.T) {
 			at := sy.NewAppTest(page)
 			at.Run()
 			got := renderedHTML(t, at)
-			for _, want := range []string{"今日大盤走勢預測", `class="market-direction up">偏多`, "預期走法", "開盤可能偏高", "盤中若權值股續強", "尾盤觀察", "判斷依據", `<strong>新聞</strong>`, "前一交易日籌碼偏多"} {
+			for _, want := range []string{"今日大盤走勢預測", `class="market-direction up">偏多`, "預期走勢示意", `points="50,12 150,40 250,12"`, "開盤預期在前收上方", "盤中預期在前收附近", "尾盤預期在前收上方", "情境示意・相對前收，非點位或漲跌幅", "預期走法", "開盤可能偏高", "盤中若權值股續強", "尾盤觀察", "判斷依據", `<strong>新聞</strong>`, "前一交易日籌碼偏多"} {
 				if !strings.Contains(got, want) {
 					t.Errorf("missing %q", want)
 				}
 			}
-			if !(strings.Index(got, "今日大盤走勢預測") < strings.Index(got, "預期走法") && strings.Index(got, "預期走法") < strings.Index(got, "判斷依據") && strings.Index(got, "判斷依據") < strings.Index(got, "總覽內容")) {
-				t.Error("outlook, trajectory, explanation, and overview are out of order")
+			if !(strings.Index(got, "今日大盤走勢預測") < strings.Index(got, "預期走勢示意") && strings.Index(got, "預期走勢示意") < strings.Index(got, "預期走法") && strings.Index(got, "預期走法") < strings.Index(got, "判斷依據") && strings.Index(got, "判斷依據") < strings.Index(got, "總覽內容")) {
+				t.Error("outlook, chart, trajectory, explanation, and overview are out of order")
 			}
 		})
 	}
@@ -654,9 +655,19 @@ func TestMarketOutlookDirectionStylesAndLegacyOmission(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("direction %s: missing %q", test.direction, want)
 		}
-		if strings.Contains(got, "預期走法") {
-			t.Errorf("legacy outlook rendered trajectory label for %s", test.direction)
+		if strings.Contains(got, "預期走法") || strings.Contains(got, "預期走勢示意") || strings.Contains(got, "market-chart") {
+			t.Errorf("legacy outlook rendered trajectory or chart for %s", test.direction)
 		}
+	}
+	path := "開盤偏低，盤中偏低，尾盤收在前收下方。"
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketDown, SummaryMD: "理由", TrajectoryMD: &path,
+		TrajectoryChart: &report.MarketTrajectoryChart{Open: "below", Midday: "below", Close: "below"}}
+	if got := app.renderReport(&value, navToHistory, "", ""); !strings.Contains(got, `class="market-chart-dot market-chart-end down"`) || !strings.Contains(got, `points="50,68 150,68 250,68"`) {
+		t.Error("bearish chart must end green and below the prior close")
+	}
+	value.MarketOutlook.TrajectoryChart = nil
+	if got := app.renderReport(&value, navToHistory, "", ""); !strings.Contains(got, "預期走法") || strings.Contains(got, "預期走勢示意") {
+		t.Error("legacy trajectory text must render without an empty chart")
 	}
 	value.MarketOutlook = nil
 	if got := app.renderReport(&value, navToHistory, "", ""); strings.Contains(got, "market-outlook") || strings.Contains(got, "今日大盤走勢預測") {

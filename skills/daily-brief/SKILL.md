@@ -625,11 +625,13 @@ curl --silent --show-error \
 
 `market_outlook.direction` 只用 `up`（偏多）、`down`（偏空）、`range`（震盪、沒有明顯單向優勢）、`uncertain`（資料不足或重大訊號相互抵消，無法可靠判斷）。**不能只填方向。** `trajectory_md` 要寫盤前能支持的基準走法：預期開盤傾向、盤中是延續／震盪／回吐、尾盤可能如何收斂，並至少寫出一項可觀察、會使走法改變的條件（例如權值股是否續強）。只用「可能」「若…則…」等預測語氣，不把當日尚未發生的量價、買盤或法說結果寫成已知事實；證據不足以推斷分段走法時，明說「盤中路徑無法可靠判斷」，並指出最重要的待觀察條件，不能硬編開高走低或固定轉折時間。
 
+若已查證的證據足以支持開盤、盤中、尾盤三階段的基準情境，另填 `trajectory_chart`：`open`、`midday`、`close` 各填 `above`（前收上方）、`near`（前收附近）或 `below`（前收下方）。這三個值只是相對前一交易日收盤的定性位置，須與 `trajectory_md` 一致，`up` 的 `close` 用 `above`、`down` 用 `below`、`range` 用 `near`。方向為 `uncertain`，或無法可靠判斷盤中路徑時，省略整個 `trajectory_chart`，不要為了畫圖推測轉折、填 `null` 或假數據。
+
 `summary_md` 用 1–3 句說明整體判斷的依據、反向訊號或限制，與 `trajectory_md` 的走法敘述分工；只能引用本次已查證、報告或相關會前 brief 已涵蓋的資訊。缺少某一類資料時不虛構，必要時以已公布資訊不足說明不確定性；不要把來源故障、蒐集批次或內部流程寫進報告。不得編造指數點位、漲跌幅、機率、具體轉折時刻或盤中結果。
 
-輸出必須符合以下完整結構。欄位名稱與型別不得改動，不得加入額外欄位。新報告必須包含 `market_outlook`；舊版報告沒有此欄位仍可讀取。
+輸出必須符合以下結構。欄位名稱與型別不得改動，不得加入未定義欄位；`trajectory_chart` 依上述證據條件填寫或省略。新報告必須包含 `market_outlook`；舊版報告沒有此欄位仍可讀取。
 
-`stock_news[].chips` 是唯一的選填區塊：有籌碼資料就整塊填齊（`margin_change`、`short_change` 查不到時可單獨省略），沒有就整塊不寫，不得填 `null` 或零值佔位。第二筆範例條目示範的就是沒有籌碼資料的寫法。
+`stock_news[].chips` 是個股新聞中唯一的選填區塊：有籌碼資料就整塊填齊（`margin_change`、`short_change` 查不到時可單獨省略），沒有就整塊不寫，不得填 `null` 或零值佔位。第二筆範例條目示範的就是沒有籌碼資料的寫法。
 
 ```json
 {
@@ -639,6 +641,7 @@ curl --silent --show-error \
   "market_outlook": {
     "direction": "up",
     "trajectory_md": "基準情境是開盤受美股與台積電題材帶動而偏高，盤中若大型電子股續強，指數可能維持高檔震盪，尾盤偏向收紅；若權值股開高後轉弱，則可能回吐並轉為區間整理。",
+    "trajectory_chart": {"open": "above", "midday": "above", "close": "above"},
     "summary_md": "美股與費半收紅，台積電先進製程消息偏正向，2026-08-06 外資買超可作佐證，預期加權指數偏多；但美國 CPI 公布前仍有波動風險。"
   },
   "watch_md": "- 台積電盤後公布 7 月營收\n- 美國 7 月 CPI 今晚公布\n- 觀察外資期貨淨空單",
@@ -719,6 +722,7 @@ curl --silent --show-error \
 - `headline`、`overview_md`、`watch_md` 都有非空白內容。
 - `market_outlook` 必填，`direction` 只用 `up`、`down`、`range`、`uncertain`，`trajectory_md` 與 `summary_md` 都不得為空白；方向判斷目標是當日加權指數收盤相對前一交易日收盤。
 - `trajectory_md` 交代開盤、盤中、尾盤的基準走法及至少一項會改變走法的條件；證據不足時明說盤中路徑無法可靠判斷，不捏造轉折時刻或當日已發生的訊號。
+- 若填 `trajectory_chart`，三階段相對前收的位置都有證據支持，與 `trajectory_md` 及收盤方向一致；盤中走法無法可靠判斷或方向為 `uncertain` 時，整塊省略。
 - 大盤理由有整份報告的依據，衡量相反訊號，引用籌碼時標前一交易日資料日期；相關法說尚未舉行時不寫成已公布結果，證據不足時用 `uncertain`。
 - `calls` 恰好包含 `short_bull`、`short_bear`、`long_bull`、`long_bear` 四個陣列。
 - `stock_news[].call` 只使用表格中的五個值。
