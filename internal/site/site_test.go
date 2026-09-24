@@ -634,8 +634,8 @@ func TestMarketOutlookRendersOnHomeAndHistory(t *testing.T) {
 					t.Errorf("missing %q", want)
 				}
 			}
-			if !(strings.Index(got, "今日大盤走勢預測") < strings.Index(got, "預期走勢示意") && strings.Index(got, "預期走勢示意") < strings.Index(got, "預期走法") && strings.Index(got, "預期走法") < strings.Index(got, "判斷依據") && strings.Index(got, "判斷依據") < strings.Index(got, "總覽內容")) {
-				t.Error("outlook, chart, trajectory, explanation, and overview are out of order")
+			if !(strings.Index(got, "總覽內容") < strings.Index(got, "今日大盤走勢預測") && strings.Index(got, "今日大盤走勢預測") < strings.Index(got, "預期走勢示意") && strings.Index(got, "預期走勢示意") < strings.Index(got, "預期走法") && strings.Index(got, "預期走法") < strings.Index(got, "判斷依據")) {
+				t.Error("overview, outlook, chart, trajectory, and explanation are out of order")
 			}
 		})
 	}

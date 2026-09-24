@@ -1075,7 +1075,7 @@ code:
 ---
 ### Requirement: Evidence-based daily market outlook
 
-The daily workflow SHALL include a `market_outlook` object with `direction`, `trajectory_md`, and `summary_md` in every new report. It SHALL form the report-date direction and a baseline opening-to-intraday-to-close trajectory from verified report evidence, including relevant news, prior-trading-day chip data when available, index-significant stocks, and relevant conference information when available. The trajectory SHALL state at least one observable condition that would alter the baseline. When evidence supports all three phases, the workflow SHALL include `trajectory_chart` with `open`, `midday`, and `close` qualitative levels relative to the preceding trading-day close, consistent with `trajectory_md` and the closing `direction`. If evidence cannot support a reliable intraday path, it SHALL explicitly say so, name the decisive condition to watch, and omit `trajectory_chart` rather than invent an intraday turn. The explanation SHALL identify countervailing evidence and data gaps, choose `uncertain` when a reliable direction cannot be supported, and SHALL NOT fabricate point targets, probabilities, precise turn times, live market observations, or evidence. `up` and `down` SHALL refer to the report-date TAIEX close relative to the preceding trading-day close; `range` SHALL mean choppy trading without a clear directional edge.
+The daily workflow SHALL include a `market_outlook` object with `direction`, `trajectory_md`, and `summary_md` in every new report. Before composing it, the workflow SHALL check the latest completed U.S. trading session available before report generation, including dated Nasdaq Composite and PHLX Semiconductor Sector Index (SOX) performance, and record each source and session date. It SHALL consider agreement or divergence between SOX, the broader U.S. market, and Taiwan-specific evidence, without treating U.S. movement alone as a deterministic TAIEX forecast. It SHALL form the report-date direction and a baseline opening-to-intraday-to-close trajectory from verified report evidence, including relevant news, prior-trading-day chip data when available, index-significant stocks, and relevant conference information when available. The trajectory SHALL state at least one observable condition that would alter the baseline. When evidence supports all three phases, the workflow SHALL include `trajectory_chart` with `open`, `midday`, and `close` qualitative levels relative to the preceding trading-day close, consistent with `trajectory_md` and the closing `direction`. If evidence cannot support a reliable intraday path, it SHALL explicitly say so, name the decisive condition to watch, and omit `trajectory_chart` rather than invent an intraday turn. The explanation SHALL identify countervailing evidence and data gaps, choose `uncertain` when a reliable direction cannot be supported, and SHALL NOT fabricate point targets, probabilities, precise turn times, live market observations, or evidence. `up` and `down` SHALL refer to the report-date TAIEX close relative to the preceding trading-day close; `range` SHALL mean choppy trading without a clear directional edge.
 
 #### Scenario: Conflicting signals
 
@@ -1091,6 +1091,16 @@ The daily workflow SHALL include a `market_outlook` object with `direction`, `tr
 
 - **WHEN** evidence supports a closing direction but not a defensible three-phase path
 - **THEN** the workflow retains the supported direction, states in `trajectory_md` that the intraday path cannot be reliably judged and identifies the decisive condition, and omits `trajectory_chart`
+
+#### Scenario: U.S. semiconductor signal diverges
+
+- **WHEN** the latest completed U.S. session shows SOX and Nasdaq moving in opposite directions, or SOX conflicts with verified Taiwan-specific signals
+- **THEN** the workflow checks the session dates, explains the conflicting evidence and its weighting in `summary_md`, and does not infer a three-phase TAIEX path from the U.S. indices alone
+
+#### Scenario: U.S. market data are missing or stale
+
+- **WHEN** a U.S. index has no verifiable close and date for the latest completed session
+- **THEN** the workflow treats that index as unavailable, does not describe an older close as last night's performance, and bases the outlook on the remaining verified evidence
 
 <!-- @trace
 source: add-market-trajectory-diagram
