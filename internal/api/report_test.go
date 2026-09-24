@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -296,7 +297,8 @@ func TestReportHandlerAcceptsEntriesWithoutChips(t *testing.T) {
 func TestReportHandlerMarketOutlookRoundTrip(t *testing.T) {
 	s, key, _, handler := setupHandler(t)
 	value := apiReport()
-	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與籌碼支持偏多"}
+	trajectory := "開盤偏高，盤中若台積電轉弱則回吐，尾盤觀察權值股。"
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與籌碼支持偏多", TrajectoryMD: &trajectory}
 	if w := request(t, handler, key.Token, value); w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -308,7 +310,7 @@ func TestReportHandlerMarketOutlookRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.MarketOutlook == nil || *got.MarketOutlook != *value.MarketOutlook {
+	if !reflect.DeepEqual(got.MarketOutlook, value.MarketOutlook) {
 		t.Fatalf("outlook = %+v, want %+v", got.MarketOutlook, value.MarketOutlook)
 	}
 }
@@ -340,5 +342,56 @@ func TestReportHandlerLegacyReportWithoutMarketOutlook(t *testing.T) {
 	w := readRequest(t, s, key.Token, "2026-08-07")
 	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), "market_outlook") {
 		t.Fatalf("legacy response = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestReportHandlerRejectsBlankMarketTrajectory(t *testing.T) {
+	s, key, notifier, handler := setupHandler(t)
+	value := apiReport()
+	blank := " \t"
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "新聞偏多", TrajectoryMD: &blank}
+	w := request(t, handler, key.Token, value)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "market_outlook.trajectory_md") {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	count, err := s.CountReports(context.Background())
+	if err != nil || count != 0 || notifier.count != 0 {
+		t.Fatalf("reports = %d, notifications = %d, err = %v", count, notifier.count, err)
+	}
+}
+
+func TestReportHandlerAcceptsLegacyOutlookWithoutTrajectory(t *testing.T) {
+	s, key, _, handler := setupHandler(t)
+	value := apiReport()
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "新聞偏多"}
+	if w := request(t, handler, key.Token, value); w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	w := readRequest(t, s, key.Token, value.Date)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "market_outlook") || strings.Contains(w.Body.String(), "trajectory_md") {
+		t.Fatalf("legacy outlook response = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestReportHandlerRejectsNonStringMarketTrajectory(t *testing.T) {
+	s, key, _, handler := setupHandler(t)
+	encoded, err := json.Marshal(apiReport())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatal(err)
+	}
+	payload["market_outlook"] = map[string]any{
+		"direction": "up", "summary_md": "新聞偏多", "trajectory_md": 42,
+	}
+	w := request(t, handler, key.Token, payload)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "trajectory_md") {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	count, err := s.CountReports(context.Background())
+	if err != nil || count != 0 {
+		t.Fatalf("reports = %d, err = %v", count, err)
 	}
 }

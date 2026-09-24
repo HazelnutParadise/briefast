@@ -221,3 +221,21 @@ func TestReportValidateMarketOutlook(t *testing.T) {
 		t.Fatalf("legacy report rejected: %v", errs)
 	}
 }
+
+func TestReportValidateMarketTrajectory(t *testing.T) {
+	path := "開盤偏高，盤中若權值股續強則延續；尾盤看收斂情況。"
+	r := validReport()
+	r.MarketOutlook = &MarketOutlook{Direction: MarketUp, SummaryMD: "新聞與籌碼偏多", TrajectoryMD: &path}
+	if errs := r.Validate(); len(errs) != 0 {
+		t.Fatalf("valid trajectory rejected: %v", errs)
+	}
+	blank := " \t\n"
+	r.MarketOutlook.TrajectoryMD = &blank
+	if errs := strings.Join(r.Validate(), "\n"); !strings.Contains(errs, "market_outlook.trajectory_md") {
+		t.Fatalf("blank trajectory accepted: %q", errs)
+	}
+	r.MarketOutlook.TrajectoryMD = nil
+	if errs := r.Validate(); len(errs) != 0 {
+		t.Fatalf("legacy outlook rejected: %v", errs)
+	}
+}

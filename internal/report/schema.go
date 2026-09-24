@@ -34,8 +34,9 @@ const (
 )
 
 type MarketOutlook struct {
-	Direction string `json:"direction"`
-	SummaryMD string `json:"summary_md"`
+	Direction    string  `json:"direction"`
+	SummaryMD    string  `json:"summary_md"`
+	TrajectoryMD *string `json:"trajectory_md,omitempty"`
 }
 
 type Calls struct {
@@ -116,6 +117,9 @@ func (r Report) Validate() []string {
 		}
 		if strings.TrimSpace(outlook.SummaryMD) == "" {
 			errs = append(errs, "market_outlook.summary_md 不得為空")
+		}
+		if outlook.TrajectoryMD != nil && strings.TrimSpace(*outlook.TrajectoryMD) == "" {
+			errs = append(errs, "market_outlook.trajectory_md 不得為空")
 		}
 	}
 	for i, industry := range r.Industries {

@@ -617,7 +617,8 @@ func TestPagesWithoutAReportCarryNoAdSlot(t *testing.T) {
 func TestMarketOutlookRendersOnHomeAndHistory(t *testing.T) {
 	s, app := setupSite(t)
 	value := fullReport("2026-08-07")
-	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與前一交易日籌碼偏多，仍須留意法說。"}
+	trajectory := "開盤可能偏高，盤中若權值股續強則延續；若轉弱則回吐，尾盤觀察是否守穩。"
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與前一交易日籌碼偏多，仍須留意法說。", TrajectoryMD: &trajectory}
 	saveReport(t, s, value)
 	for name, page := range map[string]func(){
 		"home":    app.Home,
@@ -627,13 +628,13 @@ func TestMarketOutlookRendersOnHomeAndHistory(t *testing.T) {
 			at := sy.NewAppTest(page)
 			at.Run()
 			got := renderedHTML(t, at)
-			for _, want := range []string{"今日大盤走勢預測", `class="market-direction up">偏多`, `<strong>新聞</strong>`, "前一交易日籌碼偏多"} {
+			for _, want := range []string{"今日大盤走勢預測", `class="market-direction up">偏多`, "預期走法", "開盤可能偏高", "盤中若權值股續強", "尾盤觀察", "判斷依據", `<strong>新聞</strong>`, "前一交易日籌碼偏多"} {
 				if !strings.Contains(got, want) {
 					t.Errorf("missing %q", want)
 				}
 			}
-			if strings.Index(got, "今日大盤走勢預測") > strings.Index(got, "總覽內容") {
-				t.Error("outlook must precede overview body")
+			if !(strings.Index(got, "今日大盤走勢預測") < strings.Index(got, "預期走法") && strings.Index(got, "預期走法") < strings.Index(got, "判斷依據") && strings.Index(got, "判斷依據") < strings.Index(got, "總覽內容")) {
+				t.Error("outlook, trajectory, explanation, and overview are out of order")
 			}
 		})
 	}
@@ -652,6 +653,9 @@ func TestMarketOutlookDirectionStylesAndLegacyOmission(t *testing.T) {
 		want := `class="market-direction ` + test.tone + `">` + test.label
 		if !strings.Contains(got, want) {
 			t.Errorf("direction %s: missing %q", test.direction, want)
+		}
+		if strings.Contains(got, "預期走法") {
+			t.Errorf("legacy outlook rendered trajectory label for %s", test.direction)
 		}
 	}
 	value.MarketOutlook = nil

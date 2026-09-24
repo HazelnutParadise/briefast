@@ -185,7 +185,17 @@ func (s *Site) renderMarketOutlook(outlook *report.MarketOutlook) string {
 	case report.MarketRange:
 		label = "震盪"
 	}
-	return `<div class="market-outlook"><div class="market-outlook-head"><h3>今日大盤走勢預測</h3><strong class="market-direction ` + tone + `">` + label + `</strong></div><div class="market-outlook-reason md">` + s.markdown(outlook.SummaryMD) + `</div></div>`
+	var b strings.Builder
+	b.WriteString(`<div class="market-outlook"><div class="market-outlook-head"><h3>今日大盤走勢預測</h3><strong class="market-direction ` + tone + `">` + label + `</strong></div>`)
+	if outlook.TrajectoryMD != nil && strings.TrimSpace(*outlook.TrajectoryMD) != "" {
+		b.WriteString(`<div class="market-outlook-path"><span class="market-outlook-label">預期走法</span><div class="market-outlook-path-body md">`)
+		b.WriteString(s.markdown(*outlook.TrajectoryMD))
+		b.WriteString(`</div></div>`)
+	}
+	b.WriteString(`<div class="market-outlook-reason"><span class="market-outlook-label">判斷依據</span><div class="md">`)
+	b.WriteString(s.markdown(outlook.SummaryMD))
+	b.WriteString(`</div></div></div>`)
+	return b.String()
 }
 
 func renderCalls(calls report.Calls) string {

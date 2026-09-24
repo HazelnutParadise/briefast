@@ -64,8 +64,8 @@ func TestSkillDailyReportExampleValidatesMarketOutlook(t *testing.T) {
 	if err := decoder.Decode(&r); err != nil {
 		t.Fatalf("decode example: %v", err)
 	}
-	if r.MarketOutlook == nil {
-		t.Fatal("daily report example has no market_outlook")
+	if r.MarketOutlook == nil || r.MarketOutlook.TrajectoryMD == nil || strings.TrimSpace(*r.MarketOutlook.TrajectoryMD) == "" {
+		t.Fatal("daily report example has no market trajectory")
 	}
 	if errs := r.Validate(); len(errs) != 0 {
 		t.Fatalf("example fails validation: %v", errs)
@@ -98,8 +98,8 @@ func TestReadmeReportExampleValidates(t *testing.T) {
 	if err := decoder.Decode(&r); err != nil {
 		t.Fatalf("decode example: %v", err)
 	}
-	if r.MarketOutlook == nil {
-		t.Fatal("README example has no market_outlook")
+	if r.MarketOutlook == nil || r.MarketOutlook.TrajectoryMD == nil || strings.TrimSpace(*r.MarketOutlook.TrajectoryMD) == "" {
+		t.Fatal("README example has no market trajectory")
 	}
 	if errs := r.Validate(); len(errs) != 0 {
 		t.Fatalf("example fails validation: %v", errs)
