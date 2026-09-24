@@ -292,3 +292,53 @@ func TestReportHandlerAcceptsEntriesWithoutChips(t *testing.T) {
 		t.Fatalf("read response carries a chips field for an entry without chips: %s", w.Body.String())
 	}
 }
+
+func TestReportHandlerMarketOutlookRoundTrip(t *testing.T) {
+	s, key, _, handler := setupHandler(t)
+	value := apiReport()
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與籌碼支持偏多"}
+	if w := request(t, handler, key.Token, value); w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	w := readRequest(t, s, key.Token, value.Date)
+	if w.Code != http.StatusOK {
+		t.Fatalf("read status = %d, body = %s", w.Code, w.Body.String())
+	}
+	var got report.Report
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.MarketOutlook == nil || *got.MarketOutlook != *value.MarketOutlook {
+		t.Fatalf("outlook = %+v, want %+v", got.MarketOutlook, value.MarketOutlook)
+	}
+}
+
+func TestReportHandlerRejectsInvalidMarketOutlook(t *testing.T) {
+	s, key, notifier, handler := setupHandler(t)
+	value := apiReport()
+	value.MarketOutlook = &report.MarketOutlook{Direction: "maybe", SummaryMD: " \t"}
+	w := request(t, handler, key.Token, value)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	for _, want := range []string{"market_outlook.direction", "market_outlook.summary_md"} {
+		if !strings.Contains(w.Body.String(), want) {
+			t.Errorf("response missing %q: %s", want, w.Body.String())
+		}
+	}
+	count, err := s.CountReports(context.Background())
+	if err != nil || count != 0 || notifier.count != 0 {
+		t.Fatalf("reports = %d, notifications = %d, err = %v", count, notifier.count, err)
+	}
+}
+
+func TestReportHandlerLegacyReportWithoutMarketOutlook(t *testing.T) {
+	s, key, _, handler := setupHandler(t)
+	if w := request(t, handler, key.Token, apiReport()); w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	w := readRequest(t, s, key.Token, "2026-08-07")
+	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), "market_outlook") {
+		t.Fatalf("legacy response = %d %s", w.Code, w.Body.String())
+	}
+}

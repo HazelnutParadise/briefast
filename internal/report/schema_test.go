@@ -199,3 +199,25 @@ func TestReportValidateChips(t *testing.T) {
 		})
 	}
 }
+
+func TestReportValidateMarketOutlook(t *testing.T) {
+	for _, direction := range []string{MarketUp, MarketDown, MarketRange, MarketUncertain} {
+		r := validReport()
+		r.MarketOutlook = &MarketOutlook{Direction: direction, SummaryMD: "新聞與籌碼綜合判斷"}
+		if errs := r.Validate(); len(errs) != 0 {
+			t.Fatalf("direction %q: %v", direction, errs)
+		}
+	}
+	r := validReport()
+	r.MarketOutlook = &MarketOutlook{Direction: "maybe", SummaryMD: " \t"}
+	errs := strings.Join(r.Validate(), "\n")
+	for _, want := range []string{"market_outlook.direction", "market_outlook.summary_md"} {
+		if !strings.Contains(errs, want) {
+			t.Errorf("Validate() errors = %q, missing %q", errs, want)
+		}
+	}
+	legacy := validReport()
+	if errs := legacy.Validate(); len(errs) != 0 {
+		t.Fatalf("legacy report rejected: %v", errs)
+	}
+}

@@ -155,7 +155,9 @@ func (s *Site) renderReport(r *report.Report, nav, notice, conferences string) s
 	b.WriteString(`<section class="lead">`)
 	b.WriteString(`<article class="lead-main" data-section="overview"><p class="kicker">盤前總覽</p><h2 class="headline">`)
 	b.WriteString(html.EscapeString(r.Headline))
-	b.WriteString(`</h2><div class="standfirst md">`)
+	b.WriteString(`</h2>`)
+	b.WriteString(s.renderMarketOutlook(r.MarketOutlook))
+	b.WriteString(`<div class="standfirst md">`)
 	b.WriteString(s.markdown(r.OverviewMD))
 	b.WriteString(`</div></article>`)
 	b.WriteString(`<aside class="watch" data-section="watch"><h2>今日觀察</h2><div class="md">`)
@@ -168,6 +170,22 @@ func (s *Site) renderReport(r *report.Report, nav, notice, conferences string) s
 	b.WriteString(s.renderStockNews(r.StockNews))
 	b.WriteString(`</main>`)
 	return b.String()
+}
+
+func (s *Site) renderMarketOutlook(outlook *report.MarketOutlook) string {
+	if outlook == nil {
+		return ""
+	}
+	label, tone := "無法判斷", "neutral"
+	switch outlook.Direction {
+	case report.MarketUp:
+		label, tone = "偏多", "up"
+	case report.MarketDown:
+		label, tone = "偏空", "down"
+	case report.MarketRange:
+		label = "震盪"
+	}
+	return `<div class="market-outlook"><div class="market-outlook-head"><h3>今日大盤走勢預測</h3><strong class="market-direction ` + tone + `">` + label + `</strong></div><div class="market-outlook-reason md">` + s.markdown(outlook.SummaryMD) + `</div></div>`
 }
 
 func renderCalls(calls report.Calls) string {

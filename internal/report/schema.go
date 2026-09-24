@@ -15,14 +15,27 @@ const (
 )
 
 type Report struct {
-	Date        string      `json:"date"`
-	Headline    string      `json:"headline"`
-	OverviewMD  string      `json:"overview_md"`
-	WatchMD     string      `json:"watch_md"`
-	Calls       Calls       `json:"calls"`
-	Industries  []Industry  `json:"industries"`
-	StockNews   []StockNews `json:"stock_news"`
-	GeneratedAt string      `json:"generated_at"`
+	Date          string         `json:"date"`
+	Headline      string         `json:"headline"`
+	OverviewMD    string         `json:"overview_md"`
+	WatchMD       string         `json:"watch_md"`
+	Calls         Calls          `json:"calls"`
+	Industries    []Industry     `json:"industries"`
+	StockNews     []StockNews    `json:"stock_news"`
+	GeneratedAt   string         `json:"generated_at"`
+	MarketOutlook *MarketOutlook `json:"market_outlook,omitempty"`
+}
+
+const (
+	MarketUp        = "up"
+	MarketDown      = "down"
+	MarketRange     = "range"
+	MarketUncertain = "uncertain"
+)
+
+type MarketOutlook struct {
+	Direction string `json:"direction"`
+	SummaryMD string `json:"summary_md"`
 }
 
 type Calls struct {
@@ -94,6 +107,16 @@ func (r Report) Validate() []string {
 	}
 	if strings.TrimSpace(r.WatchMD) == "" {
 		errs = append(errs, "watch_md 不得為空")
+	}
+	if outlook := r.MarketOutlook; outlook != nil {
+		switch outlook.Direction {
+		case MarketUp, MarketDown, MarketRange, MarketUncertain:
+		default:
+			errs = append(errs, "market_outlook.direction 必須是 up、down、range 或 uncertain")
+		}
+		if strings.TrimSpace(outlook.SummaryMD) == "" {
+			errs = append(errs, "market_outlook.summary_md 不得為空")
+		}
 	}
 	for i, industry := range r.Industries {
 		if len(industry.Events) == 0 {

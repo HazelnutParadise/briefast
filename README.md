@@ -28,6 +28,7 @@ flowchart LR
   "date": "2026-08-07",
   "headline": "美股收紅開盤氣氛偏多，看漲：台積電、緯創",
   "overview_md": "盤前總覽 markdown",
+  "market_outlook": {"direction": "up", "summary_md": "新聞與前一交易日籌碼偏多，但仍須留意相反訊號。"},
   "watch_md": "- 今日觀察 markdown 條列",
   "calls": {
     "short_bull": [{"symbol": "2330", "name": "台積電", "reason": "一句理由"}],
@@ -35,12 +36,14 @@ flowchart LR
     "long_bull": [],
     "long_bear": []
   },
-  "industries": [{"name": "半導體", "summary_md": "- 該產業要聞"}],
+  "industries": [{"name": "科技", "events": [{"headline": "產業要聞", "summary_md": "事件摘要"}], "watch_md": "- 追蹤後續訂單"}],
   "stock_news": [
     {
       "symbol": "2330",
       "name": "台積電",
       "call": "short_bull",
+      "headline": "公司消息支撐短線動能",
+      "watch_md": "- 追蹤營收",
       "summary_md": "摘要段落，可含列點",
       "sources": [{"title": "新聞標題", "url": "https://example.com/news"}]
     }
@@ -49,7 +52,7 @@ flowchart LR
 }
 ```
 
-`stock_news[].call` 只接受 `short_bull`、`short_bear`、`long_bull`、`long_bear`、`none`。日期必須是有效的 `YYYY-MM-DD`；`headline`、`overview_md`、`watch_md` 不得為空；每個 source 必須有 URL；四個 calls 清單中的每個 symbol 必須在 `stock_news` 有對應條目。`none` 代表有重大新聞但方向不明，不得放進 calls 清單，前台也不顯示多空標籤。
+`market_outlook` 在新每日報告中填入 `direction`（`up`、`down`、`range`、`uncertain`）及非空白 `summary_md`；舊報告可省略。方向判斷以報告日加權指數收盤相對前一交易日收盤為準。`stock_news[].call` 只接受 `short_bull`、`short_bear`、`long_bull`、`long_bear`、`none`。日期必須是有效的 `YYYY-MM-DD`；`headline`、`overview_md`、`watch_md` 不得為空；每個 source 必須有 URL；四個 calls 清單中的每個 symbol 必須在 `stock_news` 有對應條目。`none` 代表有重大新聞但方向不明，不得放進 calls 清單，前台也不顯示多空標籤。
 
 呼叫範例：
 

@@ -613,3 +613,52 @@ func TestPagesWithoutAReportCarryNoAdSlot(t *testing.T) {
 		t.Error("missing-report page must not carry the ad slot")
 	}
 }
+
+func TestMarketOutlookRendersOnHomeAndHistory(t *testing.T) {
+	s, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	value.MarketOutlook = &report.MarketOutlook{Direction: report.MarketUp, SummaryMD: "**新聞**與前一交易日籌碼偏多，仍須留意法說。"}
+	saveReport(t, s, value)
+	for name, page := range map[string]func(){
+		"home":    app.Home,
+		"history": func() { app.HistoryPage(1, value.Date) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			at := sy.NewAppTest(page)
+			at.Run()
+			got := renderedHTML(t, at)
+			for _, want := range []string{"今日大盤走勢預測", `class="market-direction up">偏多`, `<strong>新聞</strong>`, "前一交易日籌碼偏多"} {
+				if !strings.Contains(got, want) {
+					t.Errorf("missing %q", want)
+				}
+			}
+			if strings.Index(got, "今日大盤走勢預測") > strings.Index(got, "總覽內容") {
+				t.Error("outlook must precede overview body")
+			}
+		})
+	}
+}
+
+func TestMarketOutlookDirectionStylesAndLegacyOmission(t *testing.T) {
+	_, app := setupSite(t)
+	value := fullReport("2026-08-07")
+	for _, test := range []struct{ direction, label, tone string }{
+		{report.MarketDown, "偏空", "down"},
+		{report.MarketRange, "震盪", "neutral"},
+		{report.MarketUncertain, "無法判斷", "neutral"},
+	} {
+		value.MarketOutlook = &report.MarketOutlook{Direction: test.direction, SummaryMD: "理由"}
+		got := app.renderReport(&value, navToHistory, "", "")
+		want := `class="market-direction ` + test.tone + `">` + test.label
+		if !strings.Contains(got, want) {
+			t.Errorf("direction %s: missing %q", test.direction, want)
+		}
+	}
+	value.MarketOutlook = nil
+	if got := app.renderReport(&value, navToHistory, "", ""); strings.Contains(got, "market-outlook") || strings.Contains(got, "今日大盤走勢預測") {
+		t.Errorf("legacy report rendered outlook block")
+	}
+	if !strings.Contains(styles, ".market-direction.up{color:var(--up)}") || !strings.Contains(styles, ".market-direction.down{color:var(--down)}") {
+		t.Error("outlook direction colors must follow Taiwan market convention")
+	}
+}
