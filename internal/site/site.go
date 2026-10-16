@@ -156,9 +156,10 @@ func (s *Site) renderReport(r *report.Report, nav, notice, conferences string) s
 	b.WriteString(`<article class="lead-main" data-section="overview"><p class="kicker">盤前總覽</p><h2 class="headline">`)
 	b.WriteString(html.EscapeString(r.Headline))
 	b.WriteString(`</h2>`)
-	b.WriteString(`<div class="standfirst md">`)
+	b.WriteString(renderEditionGuide(r.Industries))
+	b.WriteString(`<details class="overview-details"><summary>閱讀盤前總覽</summary><div class="standfirst md">`)
 	b.WriteString(s.markdown(r.OverviewMD))
-	b.WriteString(`</div>`)
+	b.WriteString(`</div></details>`)
 	b.WriteString(s.renderMarketOutlook(r.MarketOutlook))
 	b.WriteString(`</article>`)
 	b.WriteString(`<aside class="watch" data-section="watch"><h2>今日觀察</h2><div class="md">`)
@@ -300,10 +301,10 @@ func (s *Site) renderIndustries(industries []report.Industry) string {
 	if len(industries) == 0 {
 		b.WriteString(`<p>今日無產業摘要。</p>`)
 	}
-	for _, industry := range industries {
-		fmt.Fprintf(&b, `<article class="ind-col"><h3>%s</h3>`, html.EscapeString(industry.Name))
+	for i, industry := range industries {
+		fmt.Fprintf(&b, `<article class="ind-col" id="industry-%d"><div class="industry-heading">%s<h3>%s</h3></div>`, i, renderIndustryIllustration(industry.Name), html.EscapeString(industry.Name))
 		for _, event := range industry.Events {
-			fmt.Fprintf(&b, `<div class="industry-event"><h4 class="event-headline">%s</h4><div class="md event-body">%s</div></div>`, html.EscapeString(event.Headline), s.markdown(event.SummaryMD))
+			fmt.Fprintf(&b, `<div class="industry-event"><details class="event-details"><summary><h4 class="event-headline">%s</h4></summary><div class="md event-body">%s</div></details></div>`, html.EscapeString(event.Headline), s.markdown(event.SummaryMD))
 		}
 		b.WriteString(s.renderEntryWatch(industry.WatchMD))
 		b.WriteString(`</article>`)

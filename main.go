@@ -68,6 +68,7 @@ func newHandler(s *store.Store) http.Handler {
 	adminHandler := sy.Handler(cfg, adminApp.Page)
 
 	mux := http.NewServeMux()
+	mux.Handle("GET /assets/editorial-sectors-v1.webp", site.EditorialIllustrationHandler())
 	mux.Handle("/api/report", briefapi.NewReportHandler(s, public))
 	mux.Handle("/api/report/{date}", briefapi.NewReadHandler(s))
 	conferences := briefapi.NewConferenceHandler(s, public)

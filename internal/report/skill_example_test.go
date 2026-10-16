@@ -64,11 +64,16 @@ func TestSkillDailyReportExampleValidatesMarketOutlook(t *testing.T) {
 	if err := decoder.Decode(&r); err != nil {
 		t.Fatalf("decode example: %v", err)
 	}
-	if r.MarketOutlook == nil || r.MarketOutlook.TrajectoryMD == nil || strings.TrimSpace(*r.MarketOutlook.TrajectoryMD) == "" {
-		t.Fatal("daily report example has no market trajectory")
+	if r.MarketOutlook == nil || strings.TrimSpace(r.MarketOutlook.SummaryMD) == "" {
+		t.Fatal("daily report example has no market outlook explanation")
 	}
-	if r.MarketOutlook.TrajectoryChart == nil {
-		t.Fatal("daily report example has no market trajectory chart")
+	if r.MarketOutlook.TrajectoryMD != nil || r.MarketOutlook.TrajectoryChart != nil {
+		t.Fatal("daily report example must omit intraday trajectory fields")
+	}
+	for _, phase := range []string{"開盤", "收盤"} {
+		if !strings.Contains(r.MarketOutlook.SummaryMD, phase) {
+			t.Errorf("daily report example missing %s judgment", phase)
+		}
 	}
 	if errs := r.Validate(); len(errs) != 0 {
 		t.Fatalf("example fails validation: %v", errs)
@@ -101,11 +106,16 @@ func TestReadmeReportExampleValidates(t *testing.T) {
 	if err := decoder.Decode(&r); err != nil {
 		t.Fatalf("decode example: %v", err)
 	}
-	if r.MarketOutlook == nil || r.MarketOutlook.TrajectoryMD == nil || strings.TrimSpace(*r.MarketOutlook.TrajectoryMD) == "" {
-		t.Fatal("README example has no market trajectory")
+	if r.MarketOutlook == nil || strings.TrimSpace(r.MarketOutlook.SummaryMD) == "" {
+		t.Fatal("README example has no market outlook explanation")
 	}
-	if r.MarketOutlook.TrajectoryChart == nil {
-		t.Fatal("README example has no market trajectory chart")
+	if r.MarketOutlook.TrajectoryMD != nil || r.MarketOutlook.TrajectoryChart != nil {
+		t.Fatal("README example must omit intraday trajectory fields")
+	}
+	for _, phase := range []string{"開盤", "收盤"} {
+		if !strings.Contains(r.MarketOutlook.SummaryMD, phase) {
+			t.Errorf("README example missing %s judgment", phase)
+		}
 	}
 	if errs := r.Validate(); len(errs) != 0 {
 		t.Fatalf("example fails validation: %v", errs)

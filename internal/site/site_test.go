@@ -224,11 +224,11 @@ func industryEvent(got, headline string) string {
 	if start < 0 {
 		return ""
 	}
-	end := strings.Index(got[headlineAt:], `</div></div>`)
+	end := strings.Index(got[headlineAt:], `</details></div>`)
 	if end < 0 {
 		return ""
 	}
-	return got[start : headlineAt+end+len(`</div></div>`)]
+	return got[start : headlineAt+end+len(`</details></div>`)]
 }
 
 func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
@@ -238,7 +238,7 @@ func TestEntryWatchBlocksRenderAndLegacyReportsOmitThem(t *testing.T) {
 	if count := strings.Count(got, `class="entry-watch"`); count != 6 {
 		t.Fatalf("entry watch blocks = %d, want 6", count)
 	}
-	industryStart := strings.Index(got, `<article class="ind-col">`)
+	industryStart := strings.Index(got, `<article class="ind-col" id="industry-0">`)
 	if industryStart < 0 {
 		t.Fatal("industry entry missing")
 	}
@@ -675,5 +675,38 @@ func TestMarketOutlookDirectionStylesAndLegacyOmission(t *testing.T) {
 	}
 	if !strings.Contains(styles, ".market-direction.up{color:var(--up)}") || !strings.Contains(styles, ".market-direction.down{color:var(--down)}") {
 		t.Error("outlook direction colors must follow Taiwan market convention")
+	}
+}
+
+func TestMarketOutlookOpeningAndClosingWithoutIntradayPath(t *testing.T) {
+	for _, test := range []struct{ name, direction, label, summary string }{
+		{"both", report.MarketUp, "偏多", "開盤可能高於前收，依據為夜盤與美股同向。收盤偏多，依據為權值股消息及前一交易日籌碼，需留意權值股是否轉弱。"},
+		{"opening-only", report.MarketUncertain, "無法判斷", "夜盤支持開盤可能低於前收。收盤訊號相互抵消，尚無可靠方向，觀察權值股表現。"},
+		{"closing-only", report.MarketDown, "偏空", "開盤傾向尚不明朗。收盤偏空，依據為權值股負面消息，觀察後續澄清。"},
+		{"neither", report.MarketUncertain, "無法判斷", "開盤與收盤皆因訊號分歧而無法可靠判斷，觀察權值股表現。"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s, app := setupSite(t)
+			value := fullReport("2026-08-07")
+			value.MarketOutlook = &report.MarketOutlook{Direction: test.direction, SummaryMD: test.summary}
+			saveReport(t, s, value)
+			for name, page := range map[string]func(){"home": app.Home, "history": func() { app.HistoryPage(1, value.Date) }} {
+				t.Run(name, func(t *testing.T) {
+					at := sy.NewAppTest(page)
+					at.Run()
+					got := renderedHTML(t, at)
+					for _, want := range []string{"今日大盤走勢預測", test.label, "判斷依據", test.summary} {
+						if !strings.Contains(got, want) {
+							t.Errorf("missing %q", want)
+						}
+					}
+					for _, unwanted := range []string{"預期走法", "預期走勢示意", `class="market-chart"`, "盤中路徑"} {
+						if strings.Contains(got, unwanted) {
+							t.Errorf("unexpected intraday path: %q", unwanted)
+						}
+					}
+				})
+			}
+		})
 	}
 }

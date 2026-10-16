@@ -82,3 +82,4 @@ docker compose up -d --build   # 建置與部署，SQLite 放 named volume
 ## Follow-ups
 
 - 正式站在 Cloudflare 後面，目前 `https://briefast.hazelnut-paradise.com/robots.txt` 回傳的是 Cloudflare 的 managed robots.txt（只有 content signals 註解，沒有任何 `User-agent` 或 `Disallow` 指令），`/sitemap.xml` 則是直穿到 origin。部署後要複驗 `/robots.txt` 是否含 origin 的 `Disallow` 與 `Sitemap` 兩行；若沒有，要到 Cloudflare 關掉 managed robots.txt，否則這兩行永遠到不了爬蟲。
+- 行動版效能：本機版面預覽的 Lighthouse 慢速手機測試中，現有 Google Fonts CSS 是 render-blocking request，且中文字型下載量偏大。後續改用自行部署的分字字型與非阻塞載入，保留現有襯線版式，並重新量測正式頁面。

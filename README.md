@@ -13,7 +13,7 @@ flowchart LR
     D --> F[首頁與歷史頁]
 ```
 
-- **前台**：`/` 顯示最新報告，`/history/` 每頁列出 10 份歷史報告並可檢視指定日期。
+- **前台**：`/` 顯示最新報告，`/history/` 每頁列出 10 份歷史報告並可檢視指定日期。報告頁以淡彩報紙插圖導覽產業，比例依該份報告的新聞則數計算。盤前總覽及產業正文可展開閱讀，原文完整保留。
 - **後台**：`/admin/` 以管理員密碼保護，可建立、完整檢視與撤銷 API key，並查看所有成功與拒絕紀錄。
 - **接收 API**：`POST /api/report` 每次查驗 Bearer key，驗證整份 JSON 後以日期為鍵原子 upsert。
 - **持久層**：SQLite `data/briefast.db`，啟動時自動套用 migration，啟用 WAL 與 5 秒 busy timeout。
@@ -28,7 +28,7 @@ flowchart LR
   "date": "2026-08-07",
   "headline": "美股收紅開盤氣氛偏多，看漲：台積電、緯創",
   "overview_md": "盤前總覽 markdown",
-  "market_outlook": {"direction": "up", "trajectory_md": "開盤可能偏高，盤中若權值股續強可維持高檔，尾盤偏向收紅；若轉弱則可能回吐。", "trajectory_chart": {"open": "above", "midday": "above", "close": "above"}, "summary_md": "新聞與前一交易日籌碼偏多，但仍須留意相反訊號。"},
+  "market_outlook": {"direction": "up", "summary_md": "開盤受美股收紅與臺指期夜盤偏多影響，傾向在前收上方開出；收盤方向由新聞與前一交易日籌碼偏多支撐，仍須留意相反訊號。"},
   "watch_md": "- 今日觀察 markdown 條列",
   "calls": {
     "short_bull": [{"symbol": "2330", "name": "台積電", "reason": "一句理由"}],
@@ -52,7 +52,7 @@ flowchart LR
 }
 ```
 
-`market_outlook` 在新每日報告中填入 `direction`（`up`、`down`、`range`、`uncertain`）、非空白 `trajectory_md` 與非空白 `summary_md`。若有證據支持三階段走法，可填 `trajectory_chart`，其 `open`、`midday`、`close` 各用 `above`、`near`、`below` 表示相對前收的定性位置；圖示不代表點位或漲跌幅。路徑無法可靠判斷時省略圖；舊報告可省略圖、走勢文字或整個預測。方向判斷以報告日加權指數收盤相對前一交易日收盤為準。`stock_news[].call` 只接受 `short_bull`、`short_bear`、`long_bull`、`long_bear`、`none`。日期必須是有效的 `YYYY-MM-DD`；`headline`、`overview_md`、`watch_md` 不得為空；每個 source 必須有 URL；四個 calls 清單中的每個 symbol 必須在 `stock_news` 有對應條目。`none` 代表有重大新聞但方向不明，不得放進 calls 清單，前台也不顯示多空標籤。
+`market_outlook` 在新每日報告中只填 `direction`（`up`、`down`、`range`、`uncertain`）與非空白 `summary_md`，不填 `trajectory_md` 與 `trajectory_chart`。`summary_md` 分別判斷開盤傾向與收盤方向並交代依據，兩者各自依證據獨立判斷，任一階段證據不足只影響該階段，不影響另一方。方向判斷以報告日加權指數收盤相對前一交易日收盤為準。舊欄位仍相容：舊報告的 `trajectory_md` 走勢文字與 `trajectory_chart`（其 `open`、`midday`、`close` 各用 `above`、`near`、`below` 表示相對前收的定性位置；圖示不代表點位或漲跌幅）照原樣儲存、讀回與顯示，舊報告也可省略圖、走勢文字或整個預測，API 對這些欄位的驗證不變。`stock_news[].call` 只接受 `short_bull`、`short_bear`、`long_bull`、`long_bear`、`none`。日期必須是有效的 `YYYY-MM-DD`；`headline`、`overview_md`、`watch_md` 不得為空；每個 source 必須有 URL；四個 calls 清單中的每個 symbol 必須在 `stock_news` 有對應條目。`none` 代表有重大新聞但方向不明，不得放進 calls 清單，前台也不顯示多空標籤。
 
 呼叫範例：
 

@@ -239,3 +239,42 @@ func TestListenAddressComesFromResolvedConfig(t *testing.T) {
 		t.Fatalf("listenAddr() = %q, want %q", got, want)
 	}
 }
+
+func TestEditorialIllustrationEndpoint(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "briefast.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	handler := newHandler(s)
+	const path = "/assets/editorial-sectors-v1.webp"
+	get := httptest.NewRecorder()
+	handler.ServeHTTP(get, httptest.NewRequest(http.MethodGet, path, nil))
+	if get.Code != http.StatusOK || get.Header().Get("Content-Type") != "image/webp" {
+		t.Fatalf("image response %d %q", get.Code, get.Header().Get("Content-Type"))
+	}
+	body := get.Body.Bytes()
+	if len(body) < 12 || string(body[:4]) != "RIFF" || string(body[8:12]) != "WEBP" {
+		t.Fatal("invalid embedded WebP")
+	}
+	if get.Header().Get("ETag") == "" || get.Header().Get("Cache-Control") == "" || get.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatal("missing cache or image safety headers")
+	}
+	head := httptest.NewRecorder()
+	handler.ServeHTTP(head, httptest.NewRequest(http.MethodHead, path, nil))
+	if head.Code != http.StatusOK || head.Body.Len() != 0 || head.Header().Get("Content-Length") != get.Header().Get("Content-Length") {
+		t.Fatal("HEAD must match GET headers without body")
+	}
+	conditional := httptest.NewRequest(http.MethodGet, path, nil)
+	conditional.Header.Set("If-None-Match", get.Header().Get("ETag"))
+	cached := httptest.NewRecorder()
+	handler.ServeHTTP(cached, conditional)
+	if cached.Code != http.StatusNotModified || cached.Body.Len() != 0 {
+		t.Fatalf("conditional GET = %d", cached.Code)
+	}
+	post := httptest.NewRecorder()
+	handler.ServeHTTP(post, httptest.NewRequest(http.MethodPost, path, nil))
+	if post.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST image = %d", post.Code)
+	}
+}

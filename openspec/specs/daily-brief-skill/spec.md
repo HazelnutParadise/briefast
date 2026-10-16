@@ -1075,27 +1075,34 @@ code:
 ---
 ### Requirement: Evidence-based daily market outlook
 
-The daily workflow SHALL include a `market_outlook` object with `direction`, `trajectory_md`, and `summary_md` in every new report. Before composing it, the workflow SHALL check the latest completed U.S. trading session available before report generation, including dated Nasdaq Composite and PHLX Semiconductor Sector Index (SOX) performance, and record each source and session date. It SHALL also obtain the completed TAIFEX TX night session attributed to the report trading date and compare it with the preceding trading date's regular close for the same contract, using only verified pre-report data. It SHALL use a valid TX result as evidence for the opening tendency, and SHALL explain material agreement or divergence with SOX, the broader U.S. market, and Taiwan-specific evidence. It SHALL NOT treat TX or U.S. movement alone as a deterministic closing forecast or a three-phase TAIEX path. It SHALL form the report-date direction and a baseline opening-to-intraday-to-close trajectory from verified report evidence, including relevant news, prior-trading-day chip data when available, index-significant stocks, and relevant conference information when available. The trajectory SHALL state at least one observable condition that would alter the baseline. When evidence supports all three phases, the workflow SHALL include `trajectory_chart` with `open`, `midday`, and `close` qualitative levels relative to the preceding trading-day close, consistent with `trajectory_md` and the closing `direction`. If evidence cannot support a reliable intraday path, it SHALL explicitly say so, name the decisive condition to watch, and omit `trajectory_chart` rather than invent an intraday turn. The explanation SHALL identify countervailing evidence and data gaps, choose `uncertain` when a reliable direction cannot be supported, and SHALL NOT fabricate point targets, probabilities, precise turn times, live market observations, or evidence. `up` and `down` SHALL refer to the report-date TAIEX close relative to the preceding trading-day close; `range` SHALL mean choppy trading without a clear directional edge. When verified TX night data are missing or unusable, the workflow SHALL retry once, continue with other verified evidence, and record the TX failure only in the operator report.
+The daily workflow SHALL include a `market_outlook` object with `direction` and nonblank `summary_md` in every new report. It SHALL omit `trajectory_md` and `trajectory_chart` from new reports and SHALL NOT forecast intraday continuation, reversals, three-phase paths, or turn times. It SHALL assess the opening tendency and closing direction independently from verified pre-report evidence. It SHALL express a supported opening tendency in `summary_md` relative to the preceding TAIEX close, without treating night futures as the opening price. When opening evidence is insufficient, it SHALL briefly state that the opening tendency is uncertain without discarding a supported closing judgment. The `direction` field SHALL describe the report-date TAIEX close relative to the preceding trading-day close: `up`, `down`, `range` (choppy trading without a clear directional edge), or `uncertain`. When closing evidence is insufficient it SHALL choose `uncertain`, while retaining any supported opening judgment. The summary SHALL explain the basis, material countervailing signals, and decisive observable conditions without repetitive statements that the intraday path cannot be judged.
+
+Before composing the outlook, the workflow SHALL check the latest completed U.S. trading session available before generation, including dated Nasdaq Composite and SOX performance, and record sources and session dates. It SHALL obtain the completed TAIFEX TX night session attributed to the report trading date and compare it with the preceding trading date's regular close for the same contract. It SHALL use valid TX data as opening evidence and explain material agreement or divergence with U.S. markets and Taiwan-specific news, prior-trading-day chip data, index-significant stocks, and relevant conference information when available. It SHALL NOT derive the closing direction from TX or U.S. movement alone. It SHALL NOT fabricate point targets, probabilities, live observations, or evidence. Missing or unusable TX data SHALL be retried once; the workflow SHALL continue with other verified inputs and record the failure only in the operator report. Existing stored reports and API support for legacy trajectory fields SHALL remain unchanged.
+
+#### Scenario: Opening and closing supported
+
+- **WHEN** verified evidence supports a higher opening and a bullish close
+- **THEN** the workflow emits `direction: "up"`, explains both independent judgments in `summary_md`, and omits both trajectory fields
+
+#### Scenario: Opening supported without closing support
+
+- **WHEN** TX supports a lower opening but other evidence cannot support a closing direction
+- **THEN** the workflow emits `direction: "uncertain"`, retains the lower-opening judgment with its basis and closing uncertainty in `summary_md`, and omits both trajectory fields
+
+#### Scenario: Closing supported without opening support
+
+- **WHEN** evidence supports a bearish close but cannot support an opening tendency
+- **THEN** the workflow emits `direction: "down"`, explains the closing basis and opening uncertainty in `summary_md`, and omits both trajectory fields
 
 #### Scenario: Conflicting signals
 
-- **WHEN** report evidence contains material opposing signals with no defensible directional edge
-- **THEN** the workflow emits `direction: "uncertain"`, omits `trajectory_chart`, explains the conflict, and writes a trajectory that says the intraday path cannot be reliably judged and identifies the key condition to monitor
-
-#### Scenario: Available evidence
-
-- **WHEN** the workflow composes a new report after collecting news, chips, and relevant conference information sufficient to support opening, intraday, and closing phases
-- **THEN** the JSON includes a supported direction, a nonblank baseline trajectory covering all three phases plus a condition that would change it, a consistent three-phase `trajectory_chart`, and a nonblank `summary_md` referring only to verified inputs
-
-#### Scenario: Direction support without reliable path
-
-- **WHEN** evidence supports a closing direction but not a defensible three-phase path
-- **THEN** the workflow retains the supported direction, states in `trajectory_md` that the intraday path cannot be reliably judged and identifies the decisive condition, and omits `trajectory_chart`
+- **WHEN** opposing signals support neither an opening tendency nor a closing direction
+- **THEN** the workflow emits `direction: "uncertain"`, explains the conflict and decisive observation in `summary_md`, and omits both trajectory fields without an intraday-path disclaimer
 
 #### Scenario: U.S. semiconductor signal diverges
 
 - **WHEN** the latest completed U.S. session shows SOX and Nasdaq moving in opposite directions, or SOX conflicts with verified Taiwan-specific signals
-- **THEN** the workflow checks the session dates, explains the conflicting evidence and its weighting in `summary_md`, and does not infer a three-phase TAIEX path from the U.S. indices alone
+- **THEN** the workflow checks the session dates, explains the conflicting evidence and its weighting in `summary_md`, and does not infer intraday turns from the U.S. indices
 
 #### Scenario: U.S. market data are missing or stale
 
@@ -1110,7 +1117,7 @@ The daily workflow SHALL include a `market_outlook` object with `direction`, `tr
 #### Scenario: TX night evidence conflicts with other evidence
 
 - **WHEN** the verified TX night direction conflicts materially with SOX, Nasdaq, or Taiwan-specific evidence
-- **THEN** the workflow explains the divergence and its weighting in `summary_md`, uses conditional opening language in `trajectory_md`, and omits `trajectory_chart` unless all three phases have independent support
+- **THEN** the workflow explains the divergence and its weighting in `summary_md`, uses conditional opening language in `summary_md`, and omits both trajectory fields
 
 #### Scenario: TX night source is missing or stale
 
@@ -1119,22 +1126,15 @@ The daily workflow SHALL include a `market_outlook` object with `direction`, `tr
 
 
 <!-- @trace
-source: add-tx-night-market-signal
-updated: 2026-09-24
+source: simplify-market-outlook
+updated: 2026-10-16
 code:
-  - internal/report/schema.go
-  - internal/site/styles.go
-  - DESIGN.md
   - README.md
-  - internal/site/site.go
-  - skills/daily-brief/scripts/tx_night.py
   - skills/daily-brief/SKILL.md
+  - DESIGN.md
 tests:
-  - internal/report/skill_example_test.go
-  - internal/report/schema_test.go
-  - internal/api/report_test.go
   - internal/site/site_test.go
-  - skills/daily-brief/scripts/tx_night_test.py
+  - internal/report/skill_example_test.go
 -->
 
 ---
