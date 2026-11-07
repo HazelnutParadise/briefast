@@ -36,10 +36,10 @@ func renderEditionGuide(industries []report.Industry) string {
 // Unknown labels render no art; arbitrary input never enters CSS or attributes.
 func renderIndustryIllustration(name string) string {
 	class := map[string]string{
-		"科技":   "sector-tech",
-		"金融":   "sector-finance",
-		"傳產":   "sector-industry",
-		"房地產":  "sector-property",
+		"科技":  "sector-tech",
+		"金融":  "sector-finance",
+		"傳產":  "sector-industry",
+		"房地產": "sector-property",
 	}[name]
 	if class == "" {
 		return ""
