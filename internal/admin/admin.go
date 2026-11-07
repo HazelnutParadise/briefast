@@ -58,15 +58,18 @@ func (a *App) Page() {
 	authenticated := sy.State("briefast-admin-authenticated", false)
 	if !authenticated.Get() {
 		sy.HTML(adminStyles + `<main class="admin-shell login"><p class="eyebrow">ADMINISTRATION</p><h1>Briefast 後台登入</h1></main>`)
-		password := sy.PasswordInput("管理員密碼", sy.Key("admin-password"))
-		if sy.Button("登入", sy.Key("admin-login")) {
-			if secureEqual(password, configured) {
-				authenticated.Set(true)
-				sy.Rerun()
-			} else {
-				sy.Error("密碼錯誤")
+		// 輸入框放進 Form：打字時不逐字送回伺服器重跑，避免慢回來的舊值蓋掉輸入、游標跳回前一個字。
+		sy.Form("admin-login-form", func() {
+			password := sy.PasswordInput("管理員密碼", sy.Key("admin-password"))
+			if sy.FormSubmitButton("登入", sy.Key("admin-login")) {
+				if secureEqual(password, configured) {
+					authenticated.Set(true)
+					sy.Rerun()
+				} else {
+					sy.Error("密碼錯誤")
+				}
 			}
-		}
+		})
 		return
 	}
 
@@ -76,22 +79,23 @@ func (a *App) Page() {
 func (a *App) renderDashboard() {
 	sy.HTML(adminStyles + `<header class="admin-head"><div class="admin-shell"><p class="eyebrow">ADMINISTRATION</p><h1>Briefast 後台</h1><a href="/">返回晨報</a></div></header>`)
 
-	name := sy.TextInput("Key 名稱", sy.Key("key-name"), sy.Placeholder("例如 cowork-daily"))
-	if sy.Button("建立 API key", sy.Key("create-key")) {
-		if strings.TrimSpace(name) == "" {
-			sy.Error("請輸入 Key 名稱")
-		} else {
-			token, err := a.token()
-			if err != nil {
-				sy.Error("無法產生 API key")
-			} else if _, err := a.store.CreateAPIKey(context.Background(), name, token); err != nil {
-				sy.Error("無法建立 API key")
+	sy.Form("create-key-form", func() {
+		name := sy.TextInput("Key 名稱", sy.Key("key-name"), sy.Placeholder("例如 cowork-daily"))
+		if sy.FormSubmitButton("建立 API key", sy.Key("create-key")) {
+			if strings.TrimSpace(name) == "" {
+				sy.Error("請輸入 Key 名稱")
 			} else {
-				sy.ResetWidget("key-name")
-				sy.Success("API key 已建立")
+				token, err := a.token()
+				if err != nil {
+					sy.Error("無法產生 API key")
+				} else if _, err := a.store.CreateAPIKey(context.Background(), name, token); err != nil {
+					sy.Error("無法建立 API key")
+				} else {
+					sy.Success("API key 已建立")
+				}
 			}
 		}
-	}
+	}, sy.ClearOnSubmit())
 
 	keys, err := a.store.ListAPIKeys(context.Background())
 	if err != nil {

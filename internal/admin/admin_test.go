@@ -131,3 +131,36 @@ func TestUpdateLogsRenderNewestFirstIncludingRejections(t *testing.T) {
 		t.Fatalf("update log ordering or fields incorrect: %s", got)
 	}
 }
+
+// 輸入框必須在 Form 內：Form 外的輸入框每打一個字就送回伺服器重跑，
+// 舊值慢回來會蓋掉輸入並把游標拉回前一個字。
+func TestAdminInputsAreInsideForms(t *testing.T) {
+	_, app := setupAdmin(t, "secret")
+	at := sy.NewAppTest(app.Page)
+	at.Run()
+	assertInForm(t, at, "admin-password")
+	login(t, at, "secret")
+	assertInForm(t, at, "key-name")
+}
+
+func assertInForm(t *testing.T, at *sy.AppTest, inputID string) {
+	t.Helper()
+	for _, form := range at.FindAll("form") {
+		if containsID(form, inputID) {
+			return
+		}
+	}
+	t.Fatalf("input %q is not inside a form", inputID)
+}
+
+func containsID(n *sy.Node, id string) bool {
+	if n.ID == id {
+		return true
+	}
+	for _, c := range n.Children {
+		if containsID(c, id) {
+			return true
+		}
+	}
+	return false
+}
