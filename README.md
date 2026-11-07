@@ -114,17 +114,19 @@ BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --b
 - `GET /api`：所有端點的清單。`GET /api/openapi.json`：參數、請求與回應格式。這兩個不需要 key。
 - `/api/` 底下每個 JSON 回應都帶 `guide` 欄位與 `Link: </api/guide>; rel="help"` 標頭，提醒 agent 先讀流程說明。
 
-執行工作區根目錄放一個 `.env`，填入網站網址與後台建立的 API key：
+agent 需要網站網址與後台建立的 API key。雲端排程只要設定 `BRIEFAST_URL`、`BRIEFAST_API_KEY` 兩個環境變數，每次都從空的工作區開始也沒問題。本機執行則可以在工作區根目錄放一個 `.env`：
 
 ```
 BRIEFAST_URL=https://briefast.example.com
 BRIEFAST_API_KEY=brf_...
 ```
 
+兩個來源都有時，每一項都以環境變數為準。
+
 Cowork 排程的 prompt 只要一行：
 
 ```
-讀取工作區根目錄 .env 的 BRIEFAST_URL 與 BRIEFAST_API_KEY（缺任一項就停止並回報缺少哪一項），帶著 Authorization: Bearer <BRIEFAST_API_KEY> 呼叫 GET <BRIEFAST_URL>/api/guide，完全照說明執行今天的晨報流程。
+讀取 BRIEFAST_URL 與 BRIEFAST_API_KEY，每一項先看環境變數，沒有再看工作區根目錄的 .env（兩邊都沒有就停止並回報缺少哪一項），帶著 Authorization: Bearer <BRIEFAST_API_KEY> 呼叫 GET <BRIEFAST_URL>/api/guide，完全照說明執行今天的晨報流程。
 ```
 
 新聞去重紀錄（`/api/seen/*`）存在網站的 SQLite，文章保留 90 天、事件保留 30 天。臺指期夜盤由 `POST /api/tx-night` 解析 agent 上傳的期交所 CSV。

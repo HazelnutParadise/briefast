@@ -6,14 +6,14 @@
 
 ## 執行前檢查
 
-1. 從**執行工作區根目錄**的 `.env` 讀取設定。這是設定的唯一來源，不從環境變數取值。格式為每行一組 `KEY=VALUE`：
+1. 讀取 `BRIEFAST_URL` 與 `BRIEFAST_API_KEY`。每一項先看同名的環境變數，沒設定或只有空白時，再從**執行工作區根目錄**的 `.env` 讀那一項。兩邊都有值時用環境變數的值。`.env` 的格式為每行一組 `KEY=VALUE`：
 
    ```
    BRIEFAST_URL=https://briefast.example.com
    BRIEFAST_API_KEY=在後台建立的金鑰
    ```
 
-2. 若 `.env` 不存在，或 `BRIEFAST_URL` 與 `BRIEFAST_API_KEY` 任一缺漏、只含空白，立即停止。明確回報缺少哪一項，不蒐集、不組稿、不 POST。
+2. 若 `BRIEFAST_URL` 與 `BRIEFAST_API_KEY` 任一項在環境變數和 `.env` 都拿不到非空白的值（包含 `.env` 不存在的情況），立即停止。明確回報缺少哪一項，不蒐集、不組稿、不 POST。
 3. 不顯示、記錄或回傳完整 API key。
 4. 以台北時區決定報告日期與 `generated_at`。
 5. **交易日閘門**：通過上述檢查後、開始蒐集之前，先以台北時區的當天日期查證是否為台股交易日。判定休市就立即結束——不蒐集、不判讀、不組稿、不 POST，並在執行回報中說明休市原因（週末，或行事曆條目名稱）。判斷只依下列可查證規則，不得憑記憶或常識推斷：
@@ -815,7 +815,7 @@ curl --silent --show-error \
 
 ### 送出
 
-以 `.env` 讀到的值組成 endpoint，不要寫死網址或 key：
+以執行前檢查讀到的 `BRIEFAST_URL` 與 `BRIEFAST_API_KEY` 組成 endpoint，不要寫死網址或 key：
 
 ```bash
 curl --silent --show-error \

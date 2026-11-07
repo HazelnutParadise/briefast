@@ -3,7 +3,6 @@
 ## Purpose
 
 每日盤前晨報的工作流程：交易日檢查、新聞蒐集與去重、產業與個股判讀、法說會處理、報告 JSON 組成與發布。流程說明由 `GET /api/guide` 提供。
-
 ## Requirements
 ### Requirement: Daily workflow guide served by the API
 
@@ -34,11 +33,11 @@ The guide SHALL embed the full report JSON schema with a filled example and SHAL
 
 ### Requirement: Endpoint configuration via environment
 
-The guide SHALL direct the agent to read the site URL from the BRIEFAST_URL key and the API key from the BRIEFAST_API_KEY key of a .env file at the execution workspace root, in KEY=VALUE format, and SHALL NOT contain a hardcoded URL or key. The README SHALL show a workspace .env template listing the two keys with placeholder values and no real secrets. The guide and the README task instruction SHALL tell the agent to stop and report when the .env file is missing or either key is missing or blank.
+The guide SHALL direct the agent to read the site URL from BRIEFAST_URL and the API key from BRIEFAST_API_KEY. For each key, the agent SHALL first use the process environment variable of that name; when it is unset or blank, the agent SHALL use the same key from a .env file at the execution workspace root in KEY=VALUE format. The guide SHALL NOT contain a hardcoded URL or key. The README SHALL show a workspace .env template listing the two keys with placeholder values and no real secrets, and SHALL state that a cloud schedule only needs the two environment variables. The guide and the README task instruction SHALL tell the agent to stop and report which key is missing when neither source provides a non-blank value for it.
 
 #### Scenario: Missing credentials
 
-- **WHEN** the workspace root has no .env file, or BRIEFAST_API_KEY is missing or blank in it, when the workflow runs
+- **WHEN** BRIEFAST_API_KEY is unset or blank in the environment and the workspace root has no .env file or no non-blank BRIEFAST_API_KEY in it, when the workflow runs
 - **THEN** the workflow stops before collecting and reports the missing configuration
 
 #### Scenario: Template present
@@ -46,7 +45,15 @@ The guide SHALL direct the agent to read the site URL from the BRIEFAST_URL key 
 - **WHEN** a user prepares a new execution workspace
 - **THEN** the README shows the two required keys with placeholder values to copy into the workspace .env
 
----
+#### Scenario: Cloud schedule with environment variables only
+
+- **WHEN** a cloud schedule sets BRIEFAST_URL and BRIEFAST_API_KEY as environment variables and the workspace has no .env file
+- **THEN** the workflow uses the environment values and proceeds without stopping
+
+#### Scenario: Environment value takes precedence
+
+- **WHEN** BRIEFAST_URL is set in both the environment and the workspace .env with different values
+- **THEN** the agent uses the environment value
 
 ### Requirement: Failure reporting
 
@@ -653,3 +660,4 @@ Before composing the outlook, the workflow SHALL check the latest completed U.S.
 - **THEN** the workflow omits TX as evidence, completes the report using other verified inputs, and records the TX failure only in the operator report
 
 ---
+
