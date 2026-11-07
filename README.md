@@ -15,7 +15,7 @@ flowchart LR
 
 - **前台**：`/` 顯示最新報告，`/history/` 每頁列出 10 份歷史報告並可檢視指定日期。報告頁以淡彩報紙插圖導覽產業，比例依該份報告的新聞則數計算。盤前總覽及產業正文可展開閱讀，原文完整保留。
 - **後台**：`/admin/` 以管理員密碼保護，可建立、完整檢視與撤銷 API key，並查看所有成功與拒絕紀錄。
-- **接收 API**：`POST /api/report` 每次查驗 Bearer key，驗證整份 JSON 後以日期為鍵原子 upsert。
+- **接收 API**：`POST /api/report` 每次查驗 Bearer key，驗證整份 JSON 後以日期為鍵原子 upsert。其他端點見下方「每日流程」。
 - **持久層**：SQLite `data/briefast.db`，啟動時自動套用 migration，啟用 WAL 與 5 秒 busy timeout。
 - **即時更新**：成功 ingest 後透過 `sy.Shared` 讓已連線頁面 rerun。
 
@@ -106,16 +106,28 @@ BRIEFAST_ADMIN_PASSWORD='replace-me' BRIEFAST_PORT=8600 docker compose up -d --b
 
 `BRIEFAST_PORT` 是主機對外 port，容器內固定使用 8600。資料目錄預設掛 `briefast-data` named volume；在 `.env` 把 `BRIEFAST_DATA` 設成主機路徑即改為 bind mount。主機目錄不需要事先建立或調整權限——容器啟動時會自行建立並把擁有者設為應用使用者，再降權執行，應用程序本身不以 root 執行。無論哪種，重建或重啟容器都不會刪除 reports、API keys 或 update log。網域與 HTTPS 應由外部反向代理處理。
 
-## 每日流程 skill
+## 每日流程
 
-`skills/daily-brief/SKILL.md` 定義完整四步驟與錯誤處理。agent 從**執行工作區根目錄**的 `.env` 讀取設定，範本見 `skills/daily-brief/.env.example`：
+每日晨報的完整做法由網站本身提供，Cowork 工作區不必安裝 skill。
+
+- `GET /api/guide`：流程說明（Markdown），包含交易日檢查、新聞來源、判讀規則、報告 JSON 範例與錯誤處理。需要 Bearer key。
+- `GET /api`：所有端點的清單。`GET /api/openapi.json`：參數、請求與回應格式。這兩個不需要 key。
+- `/api/` 底下每個 JSON 回應都帶 `guide` 欄位與 `Link: </api/guide>; rel="help"` 標頭，提醒 agent 先讀流程說明。
+
+執行工作區根目錄放一個 `.env`，填入網站網址與後台建立的 API key：
 
 ```
 BRIEFAST_URL=https://briefast.example.com
 BRIEFAST_API_KEY=brf_...
 ```
 
-`.env` 不存在或任一鍵缺少時，skill 會在蒐集前停止。非 200 回應會帶回 response body；5xx 只重試一次，400 則依 `errors` 修正 payload，無法修正時原文回報。
+Cowork 排程的 prompt 只要一行：
+
+```
+讀取工作區根目錄 .env 的 BRIEFAST_URL 與 BRIEFAST_API_KEY（缺任一項就停止並回報缺少哪一項），帶著 Authorization: Bearer <BRIEFAST_API_KEY> 呼叫 GET <BRIEFAST_URL>/api/guide，完全照說明執行今天的晨報流程。
+```
+
+新聞去重紀錄（`/api/seen/*`）存在網站的 SQLite，文章保留 90 天、事件保留 30 天。臺指期夜盤由 `POST /api/tx-night` 解析 agent 上傳的期交所 CSV。
 
 ## License
 

@@ -23,9 +23,12 @@ var migrationV1 string
 //go:embed migration_v2.sql
 var migrationV2 string
 
+//go:embed migration_v3.sql
+var migrationV3 string
+
 // migrations are applied in order; a database already at version N only
 // receives the entries after N. Committed entries are never edited.
-var migrations = []string{migrationV1, migrationV2}
+var migrations = []string{migrationV1, migrationV2, migrationV3}
 
 var ErrNotFound = errors.New("not found")
 

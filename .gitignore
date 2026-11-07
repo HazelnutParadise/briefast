@@ -10,5 +10,4 @@ data/
 /briefast
 coverage.out
 .DS_Store
-.spectra/
 openspec/.vector-search.db*

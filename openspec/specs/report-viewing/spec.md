@@ -20,49 +20,6 @@ The homepage SHALL render the report with the newest date found in the report st
 - **WHEN** no report file exists and a visitor opens the homepage
 - **THEN** an empty-state message is shown and the page renders without error
 
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
 ### Requirement: Fixed report layout
 
@@ -88,38 +45,6 @@ The report page SHALL render exactly five fixed content sections in this order: 
 - **WHEN** a dated report view renders while upcoming conferences exist
 - **THEN** the page contains no conferences section
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
 ### Requirement: Stock calls display
 
@@ -129,49 +54,6 @@ The stock calls section SHALL group entries into four cards: short-term bullish,
 
 - **WHEN** a report contains entries in all four call lists
 - **THEN** each entry appears in its matching card with name, symbol, and reason
-
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
 
 ---
 ### Requirement: Stock news detail display
@@ -192,26 +74,6 @@ The stock news detail section SHALL render one entry per stock_news item: stock 
 
 - **WHEN** a stock_news item carries a headline
 - **THEN** that headline appears in the entry's identification area with the stock name and symbol
-
-
-<!-- @trace
-source: news-headlines
-updated: 2026-08-09
-code:
-  - internal/api/report.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/styles.go
-  - internal/report/schema.go
-  - internal/api/read.go
-  - main.go
-tests:
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
-  - internal/api/read_test.go
-  - internal/site/site_test.go
-  - main_test.go
--->
 
 ---
 ### Requirement: History browsing
@@ -265,18 +127,6 @@ A historical report view SHALL offer masthead navigation to both the homepage an
 - **WHEN** a visitor opens a history URL whose date has no stored report
 - **THEN** the not-found state offers links to both the homepage and the history list
 
-
-<!-- @trace
-source: history-route-archive-background
-updated: 2026-08-16
-code:
-  - DESIGN.md
-  - internal/site/site.go
-  - internal/site/styles.go
-tests:
-  - internal/site/site_test.go
--->
-
 ---
 ### Requirement: Disclaimer footer
 
@@ -286,48 +136,6 @@ Every public report view SHALL display a fixed disclaimer footer stating the con
 
 - **WHEN** any report page (homepage or historical) is rendered
 - **THEN** the disclaimer footer is displayed
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
 
 ---
 ### Requirement: Watch points display
@@ -344,25 +152,6 @@ The industry news summary section and the stock news detail section SHALL render
 - **WHEN** a report stored before the watch_md field existed is rendered
 - **THEN** industry and stock entries render without a 觀察重點 block and without placeholder content
 
-<!-- @trace
-source: daily-brief-analyst-guidance
-updated: 2026-08-09
-code:
-  - internal/api/read.go
-  - internal/report/schema.go
-  - skills/daily-brief/SKILL.md
-  - internal/api/report.go
-  - main.go
-  - internal/site/styles.go
-  - internal/site/site.go
-tests:
-  - internal/api/report_test.go
-  - main_test.go
-  - internal/site/site_test.go
-  - internal/api/read_test.go
-  - internal/report/schema_test.go
--->
-
 ---
 ### Requirement: Industry event headlines display
 
@@ -372,25 +161,6 @@ The industry news summary section SHALL render each event of a section as its ow
 
 - **WHEN** the 科技 section carries two events
 - **THEN** both event headlines render as headings above their own bodies and the two events read as separate units
-
-<!-- @trace
-source: news-headlines
-updated: 2026-08-09
-code:
-  - internal/api/report.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/styles.go
-  - internal/report/schema.go
-  - internal/api/read.go
-  - main.go
-tests:
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
-  - internal/api/read_test.go
-  - internal/site/site_test.go
-  - main_test.go
--->
 
 ---
 ### Requirement: Chip data display
@@ -428,20 +198,6 @@ When an entry has no chips object — such as reports stored before the field ex
 
 - **WHEN** a report stored before the chips field existed is rendered
 - **THEN** stock news entries render without a 籌碼面 block and without placeholder content
-
-<!-- @trace
-source: add-stock-chip-data
-updated: 2026-08-21
-code:
-  - internal/site/styles.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/report/schema.go
-tests:
-  - internal/site/site_test.go
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
--->
 
 ---
 ### Requirement: Advertising slot
@@ -487,22 +243,6 @@ Pages without report content SHALL NOT carry the slot.
 | dated view with no stored report | absent |
 | waiting-for-report home page | absent |
 
-<!-- @trace
-source: article-ad-slot
-updated: 2026-08-25
-code:
-  - main.go
-  - DESIGN.md
-  - internal/site/styles.go
-  - AGENTS.md
-  - internal/seo/meta.go
-  - internal/seo/middleware.go
-  - internal/site/site.go
-tests:
-  - internal/seo/seo_test.go
-  - internal/site/site_test.go
--->
-
 ---
 ### Requirement: Upcoming conferences section
 
@@ -538,38 +278,6 @@ When at least one settled conference with a bull or bear prediction exists, the 
 - **WHEN** upcoming conferences exist but none has been settled
 - **THEN** the section renders the cards, no accuracy line, and no settled list
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
 ### Requirement: Conference brief page
 
@@ -602,38 +310,6 @@ When the brief has been settled, the page SHALL show a result band under the mas
 - **WHEN** a visitor opens /conference/?symbol=9999&date=2026-01-01 with no stored brief
 - **THEN** the page renders a not-found state linking to the homepage and no error
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
 ### Requirement: Live update on conference changes
 
@@ -643,37 +319,6 @@ When a conference brief is ingested or settled, connected homepage sessions SHAL
 
 - **WHEN** a visitor has the homepage open and a new upcoming conference brief is ingested
 - **THEN** the conferences section appears or gains the new card without a reload
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
 
 ---
 ### Requirement: Market outlook display
@@ -699,29 +344,6 @@ The homepage and dated report view SHALL display an available daily market outlo
 
 - **WHEN** a stored report has no `market_outlook`
 - **THEN** the overview renders without an outlook block or placeholder
-
-
-<!-- @trace
-source: add-newspaper-illustrations
-updated: 2026-10-16
-code:
-  - README.md
-  - DESIGN.md
-  - main.go
-  - AGENTS.md
-  - docs/design/editorial-illustrations.md
-  - internal/site/styles.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/site.go
-  - internal/site/editorial.go
-  - internal/site/editorial_assets.go
-  - internal/site/assets/editorial-sectors-v1.webp
-tests:
-  - internal/report/skill_example_test.go
-  - internal/site/site_test.go
-  - internal/site/editorial_test.go
-  - main_test.go
--->
 
 ---
 ### Requirement: Newspaper illustrations and progressive reading
@@ -749,25 +371,3 @@ Both homepage and dated report views SHALL provide an illustrated industry guide
 
 - **WHEN** a browser requests the embedded image, repeats the request with its ETag, or attempts a POST
 - **THEN** GET returns a valid WebP with cache headers, matching conditional GET returns 304, and POST returns 405
-
-<!-- @trace
-source: add-newspaper-illustrations
-updated: 2026-10-16
-code:
-  - README.md
-  - DESIGN.md
-  - main.go
-  - AGENTS.md
-  - docs/design/editorial-illustrations.md
-  - internal/site/styles.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/site.go
-  - internal/site/editorial.go
-  - internal/site/editorial_assets.go
-  - internal/site/assets/editorial-sectors-v1.webp
-tests:
-  - internal/report/skill_example_test.go
-  - internal/site/site_test.go
-  - internal/site/editorial_test.go
-  - main_test.go
--->

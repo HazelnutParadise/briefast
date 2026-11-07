@@ -58,7 +58,7 @@ func (h *ReadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, value)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "report": value})
 }
 
 func validReportDate(value string) bool {

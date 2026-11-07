@@ -218,7 +218,7 @@ func TestConferenceSettlementRejectsBadDatesAndUnknownPair(t *testing.T) {
 func TestConferenceListSplitsUpcomingFromPending(t *testing.T) {
 	s, key, _, mux := conferenceMux(t)
 	w := call(t, mux, http.MethodGet, "/api/conferences", key.Token, nil)
-	if w.Code != http.StatusOK || w.Body.String() != "{\"pending_settlement\":[],\"upcoming\":[]}\n" {
+	if w.Code != http.StatusOK || w.Body.String() != "{\"guide\":\""+GuidePointer+"\",\"pending_settlement\":[],\"upcoming\":[]}\n" {
 		t.Fatalf("empty list status = %d, body = %s", w.Code, w.Body.String())
 	}
 	for _, c := range []report.Conference{

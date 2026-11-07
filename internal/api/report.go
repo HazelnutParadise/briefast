@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -122,15 +121,4 @@ func decodeAndValidate(body io.Reader) ([]byte, report.Report, []string) {
 		return payload, value, []string{"request body 只能包含一個 JSON 物件"}
 	}
 	return payload, value, value.Validate()
-}
-
-func writeServerError(w http.ResponseWriter, err error) {
-	log.Printf("report api: %v", err)
-	writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "errors": []string{"伺服器無法完成請求"}})
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
 }

@@ -25,6 +25,17 @@ func readRequest(t *testing.T, s *store.Store, token, date string) *httptest.Res
 	return w
 }
 
+// decodeReadReport 取出讀取端點包在 report 欄位裡的報告。
+func decodeReadReport(w *httptest.ResponseRecorder, target *report.Report) error {
+	var envelope struct {
+		Report json.RawMessage `json:"report"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+		return err
+	}
+	return json.Unmarshal(envelope.Report, target)
+}
+
 func seedReport(t *testing.T, s *store.Store) report.Report {
 	t.Helper()
 	value := apiReport()
@@ -62,7 +73,7 @@ func TestReadReturnsStoredReport(t *testing.T) {
 		t.Fatalf("狀態碼 = %d, want 200, body=%s", w.Code, w.Body.String())
 	}
 	var got report.Report
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+	if err := decodeReadReport(w, &got); err != nil {
 		t.Fatal(err)
 	}
 	if got.Date != want.Date || got.Headline != want.Headline {

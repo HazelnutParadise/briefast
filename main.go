@@ -69,12 +69,7 @@ func newHandler(s *store.Store) http.Handler {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/editorial-sectors-v1.webp", site.EditorialIllustrationHandler())
-	mux.Handle("/api/report", briefapi.NewReportHandler(s, public))
-	mux.Handle("/api/report/{date}", briefapi.NewReadHandler(s))
-	conferences := briefapi.NewConferenceHandler(s, public)
-	mux.Handle("/api/conference", conferences.Ingest())
-	mux.Handle("/api/conference/settle", conferences.Settle())
-	mux.Handle("/api/conferences", conferences.List())
+	briefapi.Mount(mux, briefapi.Routes(s, public))
 	mux.Handle("GET /robots.txt", crawler.RobotsHandler())
 	mux.Handle("GET /sitemap.xml", crawler.SitemapHandler())
 	mux.Handle("/", home)

@@ -194,39 +194,12 @@ func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	return false
 }
 
-// authorize mirrors the report handlers' behaviour: an unauthenticated call
-// is logged with the given action and answered 401.
 func (h *ConferenceHandler) authorize(w http.ResponseWriter, r *http.Request, rejectAction, date string) (store.APIKey, bool) {
-	key, authenticated, err := authenticate(h.store, r)
-	if err != nil {
-		writeServerError(w, err)
-		return key, false
-	}
-	if authenticated {
-		return key, true
-	}
-	entry := store.UpdateLog{KeyName: "unknown", Action: rejectAction, ReportDate: date, Detail: "missing or invalid bearer token"}
-	if key.ID != 0 {
-		entry.APIKeyID = &key.ID
-		entry.KeyName = key.Name
-	}
-	if err := h.store.AddUpdateLog(r.Context(), entry); err != nil {
-		writeServerError(w, err)
-		return key, false
-	}
-	writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "errors": []string{"無效或已撤銷的 API key"}})
-	return key, false
+	return authorizeRequest(h.store, w, r, rejectAction, date)
 }
 
 func (h *ConferenceHandler) reject(w http.ResponseWriter, r *http.Request, key store.APIKey, action, date string, validationErrors []string) {
-	if err := h.store.AddUpdateLog(r.Context(), store.UpdateLog{
-		APIKeyID: &key.ID, KeyName: key.Name, ReportDate: date,
-		Action: action, Detail: strings.Join(validationErrors, "; "),
-	}); err != nil {
-		writeServerError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "errors": validationErrors})
+	rejectRequest(h.store, w, r, key, action, date, validationErrors)
 }
 
 func decodeConference(body io.Reader) ([]byte, report.Conference, []string) {

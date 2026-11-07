@@ -1,7 +1,7 @@
 # Plan: 近期法說會區塊與會前預測報告
 _Created: 2026-09-12 - plan-grilling - briefast:main_
 
-狀態：決策已鎖定，進入 `/spectra-propose`。
+狀態：決策已鎖定，進入 OpenSpec 提案。
 
 ## Problem
 
@@ -91,4 +91,4 @@ _Created: 2026-09-12 - plan-grilling - briefast:main_
 
 ## Next step
 
-以 `/spectra-propose` 建立 change：資料模型（新表）、ingest API（新 endpoint）、首頁區塊與報告頁（report-viewing spec 新增需求）、daily-brief skill 新步驟。
+以 OpenSpec 提案建立 change：資料模型（新表）、ingest API（新 endpoint）、首頁區塊與報告頁（report-viewing spec 新增需求）、daily-brief skill 新步驟。

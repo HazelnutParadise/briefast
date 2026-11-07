@@ -5,24 +5,22 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/HazelnutParadise/briefast/internal/guide"
 )
 
-// The skill's brief example is what the agent copies; it must pass the same
+// The guide's brief example is what the agent copies; it must pass the same
 // validation the API applies, or the first real POST fails on a typo here.
-func TestSkillConferenceExampleValidates(t *testing.T) {
-	raw, err := os.ReadFile("../../skills/daily-brief/SKILL.md")
-	if err != nil {
-		t.Skip("skill file not available:", err)
-	}
-	section := string(raw)
+func TestGuideConferenceExampleValidates(t *testing.T) {
+	section := guide.DailyBrief
 	start := strings.Index(section, "### 組會前報告並 POST")
 	if start < 0 {
-		t.Fatal("brief section heading missing from SKILL.md")
+		t.Fatal("brief section heading missing from the guide")
 	}
 	section = section[start:]
 	open := strings.Index(section, "```json\n")
 	if open < 0 {
-		t.Fatal("brief JSON example missing from SKILL.md")
+		t.Fatal("brief JSON example missing from the guide")
 	}
 	section = section[open+len("```json\n"):]
 	example := section[:strings.Index(section, "```")]
@@ -38,20 +36,16 @@ func TestSkillConferenceExampleValidates(t *testing.T) {
 	}
 }
 
-func TestSkillDailyReportExampleValidatesMarketOutlook(t *testing.T) {
-	raw, err := os.ReadFile("../../skills/daily-brief/SKILL.md")
-	if err != nil {
-		t.Skip("skill file not available:", err)
-	}
-	section := string(raw)
+func TestGuideDailyReportExampleValidatesMarketOutlook(t *testing.T) {
+	section := guide.DailyBrief
 	start := strings.Index(section, "## 4. 組成並驗證報告 JSON")
 	if start < 0 {
-		t.Fatal("daily report section missing from SKILL.md")
+		t.Fatal("daily report section missing from the guide")
 	}
 	section = section[start:]
 	open := strings.Index(section, "```json\n")
 	if open < 0 {
-		t.Fatal("daily report JSON example missing from SKILL.md")
+		t.Fatal("daily report JSON example missing from the guide")
 	}
 	section = section[open+len("```json\n"):]
 	close := strings.Index(section, "```")

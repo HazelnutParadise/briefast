@@ -5,6 +5,7 @@ go 1.25.12
 require (
 	github.com/HazelnutParadise/syralit v0.11.0
 	github.com/yuin/goldmark v1.8.2
+	golang.org/x/text v0.41.0
 	modernc.org/sqlite v1.53.0
 )
 

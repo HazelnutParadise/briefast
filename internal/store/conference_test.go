@@ -30,11 +30,11 @@ func putConference(t *testing.T, s *Store, c report.Conference) {
 	}
 }
 
-func TestFreshDatabaseReachesVersionTwoWithConferences(t *testing.T) {
+func TestFreshDatabaseReachesLatestVersionWithConferences(t *testing.T) {
 	s := openTestStore(t)
 	var version int
-	if err := s.DB().QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 2 {
-		t.Fatalf("migration version = %d, err = %v, want 2", version, err)
+	if err := s.DB().QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 3 {
+		t.Fatalf("migration version = %d, err = %v, want 3", version, err)
 	}
 	var name string
 	if err := s.DB().QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'conferences'").Scan(&name); err != nil {
@@ -42,7 +42,7 @@ func TestFreshDatabaseReachesVersionTwoWithConferences(t *testing.T) {
 	}
 }
 
-func TestVersionOneDatabaseUpgradesToVersionTwoKeepingReports(t *testing.T) {
+func TestVersionOneDatabaseUpgradesToLatestKeepingReports(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "briefast.db")
 	// Build a database exactly as the version-1 code would have left it.
 	legacy, err := Open(path)
@@ -50,7 +50,7 @@ func TestVersionOneDatabaseUpgradesToVersionTwoKeepingReports(t *testing.T) {
 		t.Fatal(err)
 	}
 	putReport(t, legacy, testReport("2026-08-07", "舊報告"))
-	if _, err := legacy.DB().Exec("DROP TABLE conferences; DELETE FROM schema_migrations WHERE version = 2"); err != nil {
+	if _, err := legacy.DB().Exec("DROP TABLE conferences; DROP TABLE seen_articles; DROP TABLE seen_events; DELETE FROM schema_migrations WHERE version >= 2"); err != nil {
 		t.Fatal(err)
 	}
 	if err := legacy.Close(); err != nil {
@@ -63,8 +63,8 @@ func TestVersionOneDatabaseUpgradesToVersionTwoKeepingReports(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	var version int
-	if err := s.DB().QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 2 {
-		t.Fatalf("migration version = %d, err = %v, want 2", version, err)
+	if err := s.DB().QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil || version != 3 {
+		t.Fatalf("migration version = %d, err = %v, want 3", version, err)
 	}
 	r, err := s.ReportByDate(context.Background(), "2026-08-07")
 	if err != nil || r.Headline != "舊報告" {

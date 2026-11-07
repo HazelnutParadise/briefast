@@ -1,22 +1,17 @@
----
-name: daily-brief
-description: Prepare and publish Briefast's daily pre-market industry and Taiwan stock report. Use before market open when an agent must collect public news, judge short- and long-horizon stock calls, compose the exact Briefast report JSON, and POST it to the authenticated report API.
----
-
 # Briefast 每日晨報
+
+這份說明由 `GET /api/guide` 提供。每個端點的參數、請求與回應格式見 `GET /api/openapi.json`，端點清單見 `GET /api`。API 回應裡的 `guide` 欄位只是提醒先讀這份說明，處理回應時忽略它。
 
 每個交易日開盤前依序完成以下五步。只送內容，禁止產生或呼叫 Artifact DSL。
 
 ## 執行前檢查
 
-1. 從**執行工作區根目錄**的 `.env` 讀取設定。這是設定的唯一來源，不從環境變數取值，也不讀 skill 目錄下的檔案。格式為每行一組 `KEY=VALUE`：
+1. 從**執行工作區根目錄**的 `.env` 讀取設定。這是設定的唯一來源，不從環境變數取值。格式為每行一組 `KEY=VALUE`：
 
    ```
    BRIEFAST_URL=https://briefast.example.com
    BRIEFAST_API_KEY=在後台建立的金鑰
    ```
-
-   `skills/daily-brief/.env.example` 是範本，複製到工作區根目錄改名 `.env` 後填入真值。
 
 2. 若 `.env` 不存在，或 `BRIEFAST_URL` 與 `BRIEFAST_API_KEY` 任一缺漏、只含空白，立即停止。明確回報缺少哪一項，不蒐集、不組稿、不 POST。
 3. 不顯示、記錄或回傳完整 API key。
@@ -49,7 +44,7 @@ curl --silent --show-error \
   "${BRIEFAST_URL%/}/api/report/2026-08-06"
 ```
 
-日期從台北時區的前一個交易日起算，回 `404` 就再往前一天，最多往前查 5 天。取到 `200` 就以 `previous.json` 的 `generated_at` 為窗口起點；5 天內都是 `404`（首次執行或長假後）就以過去 24 小時為窗口。`401` 比照第 5 步處理，停止並回報。
+日期從台北時區的前一個交易日起算，回 `404` 就再往前一天，最多往前查 5 天。取到 `200` 就以 `previous.json` 裡 `report.generated_at` 的值為窗口起點；5 天內都是 `404`（首次執行或長假後）就以過去 24 小時為窗口。`401` 比照第 5 步處理，停止並回報。
 
 ### 分批蒐集
 
@@ -141,21 +136,23 @@ curl --silent --show-error --location \
 
 全球市場動態（美股收盤、Fed 動態、國際事件）從台媒的相關報導與批次 5 的外電並用取得，兩邊重疊時以台媒版本為準。
 
-**美股市場快照：** 另外查證報告產生前最近一個**已收盤**的美股交易日，至少比對那斯達克綜合指數（整體科技股）與費城半導體指數 SOX（半導體），有相關消息時再看標普 500 與台積電 ADR。優先查有明確資料日期的[那斯達克指數頁](https://indexes.nasdaq.com/Index/Overview/COMP)及[費半指數頁](https://indexes.nasdaq.com/Index/Overview/SOX)；頁面缺值時可改用載明收盤日期與漲跌的可靠財經報導。逐項記下收盤日期、漲跌方向或幅度及來源網址，確認收盤時間早於報告 `generated_at`，美國休市時不可把更早一日的資料當成「昨夜美股」。資料日期不明、數值互相矛盾且無法核對時，該項視為缺漏，不憑新聞標題猜漲跌。這份快照是市場判讀資料，另列取得結果，不併入五批新聞筆數，也不寫入 `seen.py`。
+**美股市場快照：** 另外查證報告產生前最近一個**已收盤**的美股交易日，至少比對那斯達克綜合指數（整體科技股）與費城半導體指數 SOX（半導體），有相關消息時再看標普 500 與台積電 ADR。優先查有明確資料日期的[那斯達克指數頁](https://indexes.nasdaq.com/Index/Overview/COMP)及[費半指數頁](https://indexes.nasdaq.com/Index/Overview/SOX)；頁面缺值時可改用載明收盤日期與漲跌的可靠財經報導。逐項記下收盤日期、漲跌方向或幅度及來源網址，確認收盤時間早於報告 `generated_at`，美國休市時不可把更早一日的資料當成「昨夜美股」。資料日期不明、數值互相矛盾且無法核對時，該項視為缺漏，不憑新聞標題猜漲跌。這份快照是市場判讀資料，另列取得結果，不併入五批新聞筆數，也不送到 `/api/seen/record`。
 
 **臺指期夜盤快照：** 報告日在台北時間 05:00 之後，另外從[期交所期貨每日交易行情下載](https://www.taifex.com.tw/cht/3/futDailyMarketView)取得 TX 原始 CSV。對 `https://www.taifex.com.tw/cht/3/futDataDown` 分別送兩次 POST，一次查**報告日**、一次查已用台股資料確認的**前一交易日**；每次表單填 `down_type=1`、`queryStartDate=YYYY/MM/DD`、`queryEndDate=YYYY/MM/DD`（起迄同日）、`commodity_id=TX`、`commodity_id2=`。分別保留原始 CSV 在工作資料夾，不放進 repo。不能把前一交易日直接當成報告日減一天，也不能把報告日的日盤收盤當成盤前已知資料。期交所標示報告日的 `盤後` 列，是從前一交易日 15:00 開始、至其後次日上午 05:00 結束的交易；跨週末或連假時，不表示持續交易到報告日清晨。資料未完成或日期不合時不可使用。
 
-CSV 是 CP950 編碼。下載後用下列命令從檔案核對欄名、日期、時段、單月契約與價量；解析器會選報告日 `盤後` 成交量最高的單月 TX 契約，對照前一交易日 `一般` 的**同一契約**收盤。只有成功得到完整 JSON，才能記錄其 `report_date`、`previous_regular_date`、`contract`、兩個收盤價、`change_points`、`change_pct`、`direction`、`night_volume`，並作為開盤判讀依據；`flat` 表示沒有多空方向。跨週末或換月仍依這兩個已驗證交易日及同契約配對。不得手挑另一契約、沿用舊日夜盤或用新聞標題代替缺值。
-
-先將 `DAILY_BRIEF_SKILL_DIR` 設為**本次載入的這份 `SKILL.md` 所在資料夾的絕對路徑**，不要假設執行工作區根目錄有 `skills/` 目錄。
+CSV 是 CP950 編碼，原樣上傳即可，不要自行轉碼。下載後把兩份檔案上傳到網站的夜盤端點，由伺服器核對欄名、日期、時段、單月契約與價量；伺服器會選報告日 `盤後` 成交量最高的單月 TX 契約，對照前一交易日 `一般` 的**同一契約**收盤。只有回應 `200` 且 `ok` 為 `true`，才能記錄其 `report_date`、`previous_regular_date`、`contract`、兩個收盤價、`change_points`、`change_pct`、`direction`、`night_volume`，並作為開盤判讀依據；`flat` 表示沒有多空方向。跨週末或換月仍依這兩個已驗證交易日及同契約配對。不得手挑另一契約、沿用舊日夜盤或用新聞標題代替缺值。回應 `400` 時 `errors` 會寫明哪一項資料不合，比照下方失敗處理。
 
 ```bash
-python3 "$DAILY_BRIEF_SKILL_DIR/scripts/tx_night.py" \
-  --report-date 2026-09-24 --previous-date 2026-09-23 \
-  --report-csv tx-report.csv --previous-csv tx-previous.csv > tx-night.json
+curl --silent --show-error \
+  --output tx-night.json \
+  --write-out '%{http_code}' \
+  --header "Authorization: Bearer ${BRIEFAST_API_KEY}" \
+  --form report_date=2026-09-24 --form previous_date=2026-09-23 \
+  --form report_csv=@tx-report.csv --form previous_csv=@tx-previous.csv \
+  "${BRIEFAST_URL%/}/api/tx-night"
 ```
 
-命令中的日期只是格式範例，執行時換成當次已驗證日期；`tx-report.csv`、`tx-previous.csv` 也換成剛抓的檔案。讀取 JSON 的日期與契約後，再確認取得時間早於本次 `generated_at`。夜盤快照另列取得結果，不併入五批新聞筆數，也不寫入 `seen.py`；失敗處理見「來源成敗與完整性把關」。
+命令中的日期只是格式範例，執行時換成當次已驗證日期；`tx-report.csv`、`tx-previous.csv` 也換成剛抓的檔案。讀取 JSON 的日期與契約後，再確認取得時間早於本次 `generated_at`。夜盤快照另列取得結果，不併入五批新聞筆數，也不送到 `/api/seen/record`；失敗處理見「來源成敗與完整性把關」。
 
 #### 五批彙整表
 
@@ -180,22 +177,45 @@ python3 "$DAILY_BRIEF_SKILL_DIR/scripts/tx_night.py" \
 
 **蒐集機制不外露。** 來源清單、批次結構、當日缺了哪個來源、涵蓋是否較薄——這些一律不得寫進 `overview_md` 或任何 `summary_md`。報告只呈現新聞與判讀，不揭露我們怎麼取得資料、也不自曝覆蓋弱點。個別文章在 `sources` 的引用不受此限，那是正常的出處標示。
 
-### 去重（seen.py）
+### 去重（/api/seen）
 
-去重腳本位於 `skills/daily-brief/scripts/seen.py`，是已讀紀錄的唯一讀寫入口。
+已讀紀錄存在網站上，用 `/api/seen/` 底下的端點讀寫，這是已讀紀錄的唯一入口。每個請求都帶 `Authorization: Bearer ${BRIEFAST_API_KEY}` 與 `Content-Type: application/json`，body 是一個 JSON 物件：
+
+| 用途 | 端點 | body | 回應重點 |
+|---|---|---|---|
+| 查哪些候選沒看過 | `POST /api/seen/peek` | `{"items":[{"url":"…","title":"…","source_id":"…"}]}` | `new` 是未讀的原樣項目，`seen` 每筆多一個 `seen_by` |
+| 找改寫轉載 | `POST /api/seen/similar` | `{"content":"內文"}` | `matches` 依 `similarity` 由高到低排列 |
+| 記下處理過的文章 | `POST /api/seen/record` | `{"items":[{"url":"…","title":"…","content":"內文","symbols":["2330"],"decision":"reported","call":"short_bull"}]}` | `added` 新增筆數、`duplicates` 已存在而略過的筆數 |
+| 登記跨天事件 | `POST /api/seen/events` | `{"key":"2330|月營收|2026-07","note":"…"}` | `added` 為 `false` 表示早已登記 |
+| 查跨天事件 | `POST /api/seen/events/check` | `{"key":"2330|月營收|2026-07"}` | `reported` 與已登記的 `record` |
+
+範例（peek）：
+
+```bash
+curl --silent --show-error \
+  --output peek.json \
+  --write-out '%{http_code}' \
+  --request POST \
+  --header "Authorization: Bearer ${BRIEFAST_API_KEY}" \
+  --header "Content-Type: application/json" \
+  --data-binary @candidates.json \
+  "${BRIEFAST_URL%/}/api/seen/peek"
+```
+
+去重端點回 `401` 比照第 5 步的 `401` 處理：停止，不要重試或更換 key。回 `400` 依 `errors` 修正 body 後再送一次。回 `5xx` 重試一次，仍失敗就跳過去重繼續流程，並在執行回報註明當次沒有去重。
 
 **蒐集流程：** 第 1 至 3 步在**每個批次內各跑一次**——批次要交出的「未讀幾則」就是第 2 步的結果；第 4 至 6 步在判讀階段進行。
 
 1. 從該批來源拉清單頁資料（標題、網址、原生 ID），不下載內文。
-2. 把候選餵給 `seen.py peek`，只取回未讀的。
+2. 把候選送到 `POST /api/seen/peek`，只取回 `new` 裡未讀的。
 3. 下載未讀文章的內文。
-4. 對內文長度足夠的文章，用 `echo "內文" | seen.py similar` 檢查是否為已處理文章的改寫轉載。相似度 ≥ 0.5 視為同篇，跳過。
-5. 判讀完成後，把所有處理過的文章（含判定不報的）用 `seen.py record` 記下來。判定不報的設 `"decision": "skipped"`，避免明天重新評估同一批雜訊。
-6. 有跨天事件時，用 `seen.py event add '代號|事件類型|期間'` 登記。寫個股詳情前先 `seen.py event check` 查過，已登記的事件用延續敘述（「延續前日營收利多」），不要重新宣布。
+4. 對內文長度足夠的文章，送到 `POST /api/seen/similar` 檢查是否為已處理文章的改寫轉載。相似度 ≥ 0.5 視為同篇，跳過。
+5. 判讀完成後，把所有處理過的文章（含判定不報的）送到 `POST /api/seen/record` 記下來。判定不報的設 `"decision": "skipped"`，避免明天重新評估同一批雜訊。
+6. 有跨天事件時，用 `POST /api/seen/events` 登記 `代號|事件類型|期間`。寫個股詳情前先用 `POST /api/seen/events/check` 查過，已登記的事件用延續敘述（「延續前日營收利多」），不要重新宣布。
 
-**批次 5 的跨語言去重：** `seen.py similar` 只比對同語言內文，抓不到「同一事件、中英各一篇」的重複，所以外電文章在判讀前要多走一步——逐則以事件為單位（公司、事件類型、關鍵數字）對照同窗口的台媒報導。事件已有台媒報導的，判定不報、用 `seen.py record` 記 `"decision": "skipped"`，內容以台媒版本為準；只有台媒沒報的事件，才能作為 `overview_md` 或產業事件背景的材料。
+**批次 5 的跨語言去重：** `POST /api/seen/similar` 只比對同語言內文，抓不到「同一事件、中英各一篇」的重複，所以外電文章在判讀前要多走一步——逐則以事件為單位（公司、事件類型、關鍵數字）對照同窗口的台媒報導。事件已有台媒報導的，判定不報、用 `POST /api/seen/record` 記 `"decision": "skipped"`，內容以台媒版本為準；只有台媒沒報的事件，才能作為 `overview_md` 或產業事件背景的材料。
 
-**注意：** `event check` 查到已登記，**不代表該檔不能出現在 calls**。報告呈現的是當天的判斷狀態，同一檔連續多天看漲是正常的。事件登記只影響個股詳情的寫法。
+**注意：** `events/check` 查到已登記，**不代表該檔不能出現在 calls**。報告呈現的是當天的判斷狀態，同一檔連續多天看漲是正常的。事件登記只影響個股詳情的寫法。
 
 ### 昨收價參考資料
 
@@ -206,7 +226,7 @@ python3 "$DAILY_BRIEF_SKILL_DIR/scripts/tx_night.py" \
 
 各一個一般 HTTP 請求即可取回全市場。證交所這個請求**併入批次 2 的節流規則**（TWSE 主機序列執行、間隔至少 5 秒）；櫃買是不同主機，不受該節流限制。
 
-**讀取紀律：** 兩個回應抓回後存成工作資料夾的檔案（與 seen.jsonl 同層，不進 repo）。判讀時只用 jq、grep 這類查詢工具按新聞提及的代號取值，**不得把整份全市場回應讀進對話 context**。下方的日期驗證與計數回報同樣查存檔取得（讀 `Date` 欄位與筆數即可），不整份讀入。
+**讀取紀律：** 兩個回應抓回後存成工作資料夾的檔案（不進 repo）。判讀時只用 jq、grep 這類查詢工具按新聞提及的代號取值，**不得把整份全市場回應讀進對話 context**。下方的日期驗證與計數回報同樣查存檔取得（讀 `Date` 欄位與筆數即可），不整份讀入。
 
 **日期驗證：** 兩個回應都在 `Date` 欄位內嵌民國格式的交易日期（如 `1150814` 即 2026-08-14）。換算西元後必須等於台北時區的前一個交易日；日期過舊就把該來源視為抓取失敗，不得沿用舊價，也不得引用沒標日期的價格。
 
@@ -225,7 +245,7 @@ python3 "$DAILY_BRIEF_SKILL_DIR/scripts/tx_night.py" \
 
 `{YYYYMMDD}` 代入台北時區的前一個交易日。兩個證交所請求**併入批次 2 的節流規則**（TWSE 主機序列執行、間隔至少 5 秒；連同昨收價那一個請求，四個 TWSE 請求排在同一條序列裡，不並行）；櫃買是不同主機，不受該節流限制。
 
-**讀取紀律：** 四個回應抓回後各存成工作資料夾的檔案（與 seen.jsonl 同層，不進 repo）。判讀與組稿時只用 jq、grep 這類查詢工具按報告會寫到的代號取值，**不得把整份全市場回應讀進對話 context**。下方的日期驗證與計數回報同樣查存檔取得。
+**讀取紀律：** 四個回應抓回後各存成工作資料夾的檔案（不進 repo）。判讀與組稿時只用 jq、grep 這類查詢工具按報告會寫到的代號取值，**不得把整份全市場回應讀進對話 context**。下方的日期驗證與計數回報同樣查存檔取得。
 
 **日期驗證：** 證交所回應的 `stat` 必須是 `OK`、`date` 必須等於送出的日期參數；櫃買每筆內嵌民國格式 `Date`（如 `1150820` 即 2026-08-20），換算西元後必須等於前一個交易日。**兩個櫃買端點的更新時點並不同步**，各自驗證各自的日期，一個過期不影響另一個。日期不符就把該來源視為抓取失敗，不得沿用舊資料。
 
@@ -381,7 +401,7 @@ jq -r --arg s 6488 '.[] | select(.SecuritiesCompanyCode==$s) | [.MarginPurchaseB
 
 1. **判斷先行** — 內文第一句寫這則新聞改變了什麼判斷，再回頭交代事件，不要照時間順序敘事。這句要比 `headline` **深一層**：標題給結論，首句給機制或條件。`call: "none"` 的條目，首句改寫「為什麼無法判斷方向」，不得為了句型硬給判斷。
 2. **量級換算** — 新聞裡的金額換算成對公司的相對量級才有意義，但**只有本次確實抓到基準數字**（營收、資本額等）時才寫。抓不到就只寫新聞載明的絕對金額，整句省略換算，不留佔位句。
-3. **預期差定位** — 指出這是新資訊還是市場已知的延續，這是多空判讀的核心。**只能依據新聞自己載明的預期**（如「優於法人預估」），或 `seen.py event check` 已登記的跨天事件；兩者皆無就不寫預期差。
+3. **預期差定位** — 指出這是新資訊還是市場已知的延續，這是多空判讀的核心。**只能依據新聞自己載明的預期**（如「優於法人預估」），或 `POST /api/seen/events/check` 已登記的跨天事件；兩者皆無就不寫預期差。
 4. **翻譯公關語言** — 把新聞稿形容詞還原成事實：「深化布局」「戰略合作」若沒有金額與交付期，降級為意向而非訂單。有數字就保留數字的力度，不要弱化。
 5. **具名歸因** — 誰說的照新聞寫：哪家外資、目標價從多少調到多少。**新聞只寫「外資」「供應鏈」等模糊主詞時，保留模糊**，不得自行補上機構名，同時依排序依據第 2 項把事實層級降一級。
 
@@ -784,7 +804,7 @@ curl --silent --show-error \
   "${BRIEFAST_URL%/}/api/report/2026-08-07"
 ```
 
-`404` 表示該日尚無報告，直接進入送出流程。`200` 表示已有報告，比對 `existing.json` 與本次報告的 `industries` 條目數與 `stock_news` 條目數：
+`404` 表示該日尚無報告，直接進入送出流程。`200` 表示已有報告，比對 `existing.json` 裡 `report` 與本次報告的 `industries` 條目數與 `stock_news` 條目數：
 
 - 兩項都不少於既有版本：照下方流程 POST，不需額外確認。
 - 任一項少於既有版本：停止，不要 POST。說明本次為什麼內容較少（例如某來源失敗、當日新聞確實稀少），等待指示後再決定是否覆寫。

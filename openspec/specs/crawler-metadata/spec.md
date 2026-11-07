@@ -32,20 +32,6 @@ The declaration SHALL come from the application shell configuration, so that it 
 - **WHEN** a client requests a page that produces no per-page metadata, such as an admin page
 - **THEN** the response HTML root element still carries `lang="zh-Hant-TW"`
 
-
-<!-- @trace
-source: drop-head-middleware
-updated: 2026-08-25
-code:
-  - internal/site/site.go
-  - internal/seo/meta.go
-  - AGENTS.md
-  - internal/seo/middleware.go
-  - main.go
-tests:
-  - internal/seo/seo_test.go
--->
-
 ---
 ### Requirement: Each public page carries its own title and description
 
@@ -96,38 +82,6 @@ Public page HTML responses SHALL carry a `title` element and a `meta name="descr
 - **WHEN** the browser finishes loading the application on a public page
 - **THEN** the document title is still the title that page was served with
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
 ### Requirement: Public pages carry canonical and social sharing metadata
 
@@ -150,25 +104,6 @@ Public page HTML responses SHALL carry a canonical link and Open Graph and Twitt
 - **WHEN** a client requests any public page
 - **THEN** the response carries `twitter:card` with the value `summary`
 
-
-<!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
-code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
-  - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
-  - AGENTS.md
-  - internal/seo/seo.go
-tests:
-  - main_test.go
-  - internal/seo/seo_test.go
--->
-
 ---
 ### Requirement: Site serves robots.txt
 
@@ -180,25 +115,6 @@ The system SHALL serve `/robots.txt` describing which paths crawlers may fetch a
 - **THEN** the response status is 200 with content type `text/plain`
 - **AND** the body disallows `/admin/` and `/api/`
 - **AND** the body declares the sitemap using an absolute URL
-
-
-<!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
-code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
-  - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
-  - AGENTS.md
-  - internal/seo/seo.go
-tests:
-  - main_test.go
-  - internal/seo/seo_test.go
--->
 
 ---
 ### Requirement: Site serves a sitemap covering every report
@@ -226,38 +142,6 @@ The system SHALL serve `/sitemap.xml` listing the home page, the history list pa
 - **WHEN** the report listing query or the conference listing query fails
 - **THEN** the response status is 500 and no partial XML document is written
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
 ### Requirement: Site base URL resolution
 
@@ -278,25 +162,6 @@ The system SHALL resolve the absolute site base URL used by canonical, Open Grap
 - **WHEN** `BRIEFAST_SITE_URL` is unset and no `X-Forwarded-Proto` header is present
 - **THEN** absolute URLs use `https` for a TLS connection and `http` otherwise, together with the request host
 
-
-<!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
-code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
-  - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
-  - AGENTS.md
-  - internal/seo/seo.go
-tests:
-  - main_test.go
-  - internal/seo/seo_test.go
--->
-
 ---
 ### Requirement: Metadata failures degrade to site defaults
 
@@ -307,21 +172,3 @@ Report lookup failures SHALL NOT turn into page errors.
 - **WHEN** the report lookup backing a page's metadata returns an error or finds no report
 - **THEN** the page is served with the site default title and description
 - **AND** the response status is unchanged
-
-<!-- @trace
-source: seo-crawler-metadata
-updated: 2026-08-21
-code:
-  - README.md
-  - main.go
-  - internal/seo/endpoints.go
-  - internal/seo/meta.go
-  - docker-compose.yml
-  - internal/seo/middleware.go
-  - .env.example
-  - AGENTS.md
-  - internal/seo/seo.go
-tests:
-  - main_test.go
-  - internal/seo/seo_test.go
--->

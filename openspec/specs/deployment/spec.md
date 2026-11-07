@@ -15,49 +15,6 @@ The repo SHALL contain a Dockerfile and docker-compose.yml such that docker comp
 - **WHEN** a report and a key exist and the container is rebuilt and restarted
 - **THEN** the report history and the key are still present and served
 
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
 ### Requirement: Configuration injection
 
@@ -98,18 +55,6 @@ The address the server listens on SHALL be derived from the resolved configurati
 - **WHEN** git status is inspected after configuring an admin password
 - **THEN** the password appears in no tracked file, .env is ignored, and the tracked syralit.toml carries no secrets section at all
 
-
-<!-- @trace
-source: fix-listen-address
-updated: 2026-08-25
-code:
-  - main.go
-  - go.sum
-  - go.mod
-tests:
-  - main_test.go
--->
-
 ---
 ### Requirement: Data directory works on any host mount
 
@@ -129,12 +74,3 @@ The container SHALL start successfully when the data directory is bind mounted f
 
 - **WHEN** the container is running normally
 - **THEN** the application process runs as the unprivileged application user
-
-<!-- @trace
-source: bind-mount-safe-data-dir
-updated: 2026-08-15
-code:
-  - README.md
-  - Dockerfile
-  - docker-entrypoint.sh
--->

@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change 'daily-report-site'. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Bearer key authentication
 
 POST /api/report SHALL require an Authorization header of the form Bearer <key>. Requests whose key is missing, unknown, or revoked SHALL be rejected with HTTP 401 and SHALL NOT be persisted. Key validity SHALL be checked against the current key store on every request so that revocation takes effect immediately. Each rejected request SHALL be recorded in the update log with a rejected-auth action.
@@ -20,50 +18,8 @@ POST /api/report SHALL require an Authorization header of the form Bearer <key>.
 - **WHEN** a key is revoked in the admin panel and a request signed with it arrives afterwards
 - **THEN** the API responds 401
 
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
+
 ### Requirement: Report schema validation
 
 The API SHALL validate the request body against the report schema before persisting. On any violation the API SHALL respond 400 with a JSON body containing ok=false and an errors array describing every violation, and SHALL NOT persist any part of the report. The rejected attempt SHALL be recorded in the update log with a rejected-schema action. Validation SHALL enforce at minimum: date matches YYYY-MM-DD; generated_at is an RFC 3339 timestamp carrying a timezone offset in the colon form such as +08:00; headline, overview_md, and watch_md are non-empty; every call entry value is one of short_bull, short_bear, long_bull, long_bear, none; every source has a url; every industries entry and every stock_news entry carries a non-empty watch_md; every industries entry carries at least one event; every event carries a non-empty headline and a non-empty summary_md; every stock_news entry carries a non-empty headline. Each violation message SHALL identify the offending entry by index so an agent can locate it without guessing.
@@ -110,20 +66,8 @@ A stock_news entry SHALL accept an optional chips object carrying the previous t
 - **WHEN** a payload's third stock_news entry carries a chips object whose date is not a valid YYYY-MM-DD value
 - **THEN** the API responds 400 with a violation naming stock_news index 2 and no report row is persisted
 
-
-<!-- @trace
-source: fix-generated-at-format
-updated: 2026-09-14
-code:
-  - internal/site/conference.go
-  - internal/report/schema.go
-  - internal/site/site.go
-tests:
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
--->
-
 ---
+
 ### Requirement: Calls and stock news consistency
 
 The API SHALL reject a report in which any symbol listed in the four calls lists has no matching stock_news entry. Stock_news entries with call none and no calls-list membership SHALL be accepted.
@@ -141,50 +85,8 @@ The API SHALL reject a report in which any symbol listed in the four calls lists
 | short_bull: 2330 | 2317 (call none) | 400, missing 2330 |
 | (all empty) | 2317 (call none) | accepted |
 
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
+
 ### Requirement: Successful ingestion
 
 On a valid authenticated request the API SHALL upsert the report into the SQLite database keyed by its date, insert one update-log row recording the time, the key name (snapshotted at write time), the report date, and the action, trigger a live update notification, and respond 200 with ok=true and the report date. A subsequent valid request for the same date SHALL overwrite the stored report (last write wins).
@@ -199,50 +101,8 @@ On a valid authenticated request the API SHALL upsert the report into the SQLite
 - **WHEN** a second valid report for 2026-08-07 is posted
 - **THEN** the stored report contains the second payload and a second update-log row is inserted
 
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
+
 ### Requirement: Live update push
 
 When a report is successfully ingested, all currently connected browser sessions SHALL be refreshed to show the new report without a manual reload.
@@ -252,57 +112,21 @@ When a report is successfully ingested, all currently connected browser sessions
 - **WHEN** a visitor has the homepage open and a new report is ingested
 - **THEN** the visitor's page updates to the new report without pressing reload
 
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
+
 ### Requirement: Authenticated report read endpoint
 
-The API SHALL expose GET /api/report/{date} returning the stored report for that date as the same JSON structure that was ingested. The endpoint SHALL require the same Bearer key authentication as ingestion and SHALL re-check key status on every request so revocation takes effect immediately. Requests with a missing, invalid, or revoked key SHALL receive 401 and SHALL be recorded in the update log with a read-rejected-auth action. A date that is not a valid YYYY-MM-DD value SHALL receive 400. A valid date with no stored report SHALL receive 404. All non-200 responses SHALL carry ok=false and an errors array. Successful reads SHALL NOT be written to the update log.
+The API SHALL expose GET /api/report/{date} returning `{"ok":true,"guide":…,"report":…}` on success, where `report` is the stored report for that date in the same JSON structure that was ingested. The endpoint SHALL require the same Bearer key authentication as ingestion and SHALL re-check key status on every request so revocation takes effect immediately. Requests with a missing, invalid, or revoked key SHALL receive 401 and SHALL be recorded in the update log with a read-rejected-auth action. A date that is not a valid YYYY-MM-DD value SHALL receive 400. A valid date with no stored report SHALL receive 404. All non-200 responses SHALL carry ok=false and an errors array. Successful reads SHALL NOT be written to the update log.
 
 #### Scenario: Authorized read returns the report
 
 - **WHEN** a request with a valid Bearer key asks for a date that has a stored report
-- **THEN** the API responds 200 with that report's full JSON including every industries and stock_news entry
+- **THEN** the API responds 200 with ok=true, the guide pointer, and that report's full JSON under `report` including every industries and stock_news entry
+
+#### Scenario: Read report can be resubmitted
+
+- **WHEN** an agent takes the `report` object from a read response and POSTs it unchanged to /api/report
+- **THEN** the ingest accepts it without an unknown-field error
 
 #### Scenario: Revoked key rejected and logged
 
@@ -314,26 +138,6 @@ The API SHALL expose GET /api/report/{date} returning the stored report for that
 - **WHEN** a request with a valid Bearer key asks for a well-formed date that has no stored report
 - **THEN** the API responds 404 with ok=false and no update log entry
 
-<!-- @trace
-source: daily-brief-analyst-guidance
-updated: 2026-08-09
-code:
-  - internal/api/read.go
-  - internal/report/schema.go
-  - skills/daily-brief/SKILL.md
-  - internal/api/report.go
-  - main.go
-  - internal/site/styles.go
-  - internal/site/site.go
-tests:
-  - internal/api/report_test.go
-  - main_test.go
-  - internal/site/site_test.go
-  - internal/api/read_test.go
-  - internal/report/schema_test.go
--->
-
----
 ### Requirement: Daily market outlook payload
 
 The report API SHALL accept an optional `market_outlook` object with `direction`, `summary_md`, optional `trajectory_md`, and optional `trajectory_chart`. When present, `direction` MUST be one of `up`, `down`, `range`, or `uncertain`, and `summary_md` MUST contain non-whitespace text. A non-null provided `trajectory_md` MUST contain non-whitespace text; null SHALL be treated as absent. A non-null `trajectory_chart` MUST have `open`, `midday`, and `close` values drawn only from `above`, `near`, and `below`, and MUST have a nonblank `trajectory_md`. Its `close` MUST be `above` for `up`, `below` for `down`, and `near` for `range`; `uncertain` MUST NOT carry a chart. Invalid outlooks SHALL produce HTTP 400 with an error naming the offending `market_outlook` field and SHALL NOT persist the report. Successful reads SHALL return the same outlook, including its trajectory and chart when present. Reports without the object or without either optional trajectory field SHALL remain valid and readable.
@@ -367,20 +171,3 @@ The report API SHALL accept an optional `market_outlook` object with `direction`
 
 - **WHEN** a valid report omits `market_outlook`
 - **THEN** POST returns 200 and the report remains readable
-
-<!-- @trace
-source: add-market-trajectory-diagram
-updated: 2026-09-24
-code:
-  - internal/report/schema.go
-  - internal/site/styles.go
-  - DESIGN.md
-  - README.md
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-tests:
-  - internal/report/skill_example_test.go
-  - internal/report/schema_test.go
-  - internal/api/report_test.go
-  - internal/site/site_test.go
--->

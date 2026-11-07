@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	briefapi "github.com/HazelnutParadise/briefast/internal/api"
 	"github.com/HazelnutParadise/briefast/internal/report"
 	"github.com/HazelnutParadise/briefast/internal/site"
 	"github.com/HazelnutParadise/briefast/internal/store"
@@ -276,5 +277,72 @@ func TestEditorialIllustrationEndpoint(t *testing.T) {
 	handler.ServeHTTP(post, httptest.NewRequest(http.MethodPost, path, nil))
 	if post.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST image = %d", post.Code)
+	}
+}
+
+func TestAPIRoutesMatchOverviewAndOpenAPI(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "briefast.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	handler := newHandler(s)
+	get := func(path string) map[string]any {
+		t.Helper()
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusOK || w.Header().Get("Link") != briefapi.GuideLink {
+			t.Fatalf("GET %s status = %d, Link = %q", path, w.Code, w.Header().Get("Link"))
+		}
+		var body map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
+
+	served := map[string]bool{}
+	for _, route := range briefapi.Routes(s, nil) {
+		served[route.Method+" "+route.Path] = true
+		path := strings.ReplaceAll(route.Path, "{date}", "2026-08-07")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodPatch, path, nil))
+		if w.Code != http.StatusMethodNotAllowed {
+			t.Errorf("PATCH %s status = %d, want 405 from the mounted handler", path, w.Code)
+		}
+	}
+
+	overview := get("/api")
+	if overview["guide"] != briefapi.GuidePointer || overview["openapi"] != "/api/openapi.json" {
+		t.Fatalf("overview = %v", overview)
+	}
+	listed := map[string]bool{}
+	for _, entry := range overview["endpoints"].([]any) {
+		e := entry.(map[string]any)
+		listed[e["method"].(string)+" "+e["path"].(string)] = true
+	}
+
+	document := get("/api/openapi.json")
+	documented := map[string]bool{}
+	for path, item := range document["paths"].(map[string]any) {
+		for method := range item.(map[string]any) {
+			documented[strings.ToUpper(method)+" "+path] = true
+		}
+	}
+	for name, set := range map[string]map[string]bool{"overview": listed, "openapi": documented} {
+		if len(set) != len(served) {
+			t.Errorf("%s 有 %d 個端點，路由表有 %d 個", name, len(set), len(served))
+		}
+		for key := range served {
+			if !set[key] {
+				t.Errorf("%s 缺少 %s", name, key)
+			}
+		}
+	}
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/reports", nil))
+	if w.Code != http.StatusNotFound || !strings.Contains(w.Header().Get("Content-Type"), "application/json") || !strings.Contains(w.Body.String(), briefapi.GuidePointer) {
+		t.Fatalf("unknown API path = %d %q %s", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
 }

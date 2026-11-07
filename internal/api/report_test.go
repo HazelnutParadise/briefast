@@ -250,7 +250,7 @@ func TestReportHandlerRoundTripsChips(t *testing.T) {
 		t.Fatalf("read status = %d, body = %s", w.Code, w.Body.String())
 	}
 	var got report.Report
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+	if err := decodeReadReport(w, &got); err != nil {
 		t.Fatal(err)
 	}
 	want := value.StockNews[0].Chips
@@ -308,7 +308,7 @@ func TestReportHandlerMarketOutlookRoundTrip(t *testing.T) {
 		t.Fatalf("read status = %d, body = %s", w.Code, w.Body.String())
 	}
 	var got report.Report
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+	if err := decodeReadReport(w, &got); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(got.MarketOutlook, value.MarketOutlook) {

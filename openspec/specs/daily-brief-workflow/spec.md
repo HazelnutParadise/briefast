@@ -1,196 +1,67 @@
-# daily-brief-skill Specification
+# daily-brief-workflow Specification
 
 ## Purpose
 
-TBD - created by archiving change 'daily-report-site'. Update Purpose after archive.
+每日盤前晨報的工作流程：交易日檢查、新聞蒐集與去重、產業與個股判讀、法說會處理、報告 JSON 組成與發布。流程說明由 `GET /api/guide` 提供。
 
 ## Requirements
+### Requirement: Daily workflow guide served by the API
 
-### Requirement: Daily workflow skill exists in the repo
+The daily pre-market workflow SHALL be served by GET /api/guide as ordered steps: collect industry and stock market news, judge stock calls from the news, compose the report JSON, and POST it to the site API. The repo SHALL NOT ship a separate daily-brief skill package. The README SHALL provide the one-line Cowork task instruction that tells the agent to read the workspace .env and then follow GET /api/guide.
 
-The repo SHALL contain a Cowork skill at skills/daily-brief/SKILL.md (project-root skills directory) defining the daily pre-market workflow as ordered steps: collect industry and stock market news, judge stock calls from the news, compose the report JSON, and POST it to the site API.
+#### Scenario: Guide discoverable
 
-#### Scenario: Skill discoverable
+- **WHEN** an agent configured only with the site URL and an API key calls GET /api/guide
+- **THEN** it receives the daily-brief workflow with the four workflow steps documented
 
-- **WHEN** an agent loads skills/daily-brief/SKILL.md in this repo
-- **THEN** the daily-brief skill is available with the four workflow steps documented
+#### Scenario: No skill package left
 
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
+- **WHEN** the repo is checked after this change
+- **THEN** skills/daily-brief/ does not exist and no file refers to its SKILL.md or scripts
 
 ---
-### Requirement: Skill output contract
 
-The skill SHALL embed the full report JSON schema with a filled example and SHALL instruct the agent to produce a payload conforming to it. The skill SHALL require that every stock call carries a one-line reason and at least one news source, and that stocks with major news but no clear direction are emitted as stock_news entries with call none.
+### Requirement: Guide output contract
+
+The guide SHALL embed the full report JSON schema with a filled example and SHALL instruct the agent to produce a payload conforming to it. The guide SHALL require that every stock call carries a one-line reason and at least one news source, and that stocks with major news but no clear direction are emitted as stock_news entries with call none.
 
 #### Scenario: Unclear direction handled
 
 - **WHEN** the agent finds major news about a stock but cannot judge direction
-- **THEN** the skill directs it to emit a stock_news entry with call none and no calls-list entry
-
-
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
+- **THEN** the guide directs it to emit a stock_news entry with call none and no calls-list entry
 
 ---
+
 ### Requirement: Endpoint configuration via environment
 
-The skill SHALL direct the agent to read the site URL from the BRIEFAST_URL key and the API key from the BRIEFAST_API_KEY key of a .env file at the execution workspace root, in KEY=VALUE format, and SHALL NOT contain a hardcoded URL or key. The skill directory SHALL ship a .env.example template listing the two keys with placeholder values and no real secrets. The skill SHALL instruct the agent to stop and report when the .env file is missing or either key is missing or blank.
+The guide SHALL direct the agent to read the site URL from the BRIEFAST_URL key and the API key from the BRIEFAST_API_KEY key of a .env file at the execution workspace root, in KEY=VALUE format, and SHALL NOT contain a hardcoded URL or key. The README SHALL show a workspace .env template listing the two keys with placeholder values and no real secrets. The guide and the README task instruction SHALL tell the agent to stop and report when the .env file is missing or either key is missing or blank.
 
 #### Scenario: Missing credentials
 
-- **WHEN** the workspace root has no .env file, or BRIEFAST_API_KEY is missing or blank in it, when the skill runs
+- **WHEN** the workspace root has no .env file, or BRIEFAST_API_KEY is missing or blank in it, when the workflow runs
 - **THEN** the workflow stops before collecting and reports the missing configuration
 
 #### Scenario: Template present
 
 - **WHEN** a user prepares a new execution workspace
-- **THEN** the skill's .env.example shows the two required keys with placeholder values to copy into the workspace .env
-
-
-<!-- @trace
-source: daily-brief-source-overhaul
-updated: 2026-08-10
-code:
-  - skills/daily-brief/SKILL.md
-  - skills/daily-brief/.env.example
--->
+- **THEN** the README shows the two required keys with placeholder values to copy into the workspace .env
 
 ---
+
 ### Requirement: Failure reporting
 
-The skill SHALL instruct the agent to treat a non-200 API response as a failure, include the response body in its report, and retry once on 5xx errors before reporting failure.
+The guide SHALL instruct the agent to treat a non-200 API response as a failure, include the response body in its report, and retry once on 5xx errors before reporting failure.
 
 #### Scenario: Validation rejection surfaced
 
 - **WHEN** the API responds 400 with an errors array
 - **THEN** the agent fixes the payload per the errors when possible, otherwise reports the errors verbatim
 
-<!-- @trace
-source: daily-report-site
-updated: 2026-08-09
-code:
-  - syralit.toml.example
-  - internal/report/schema.go
-  - internal/store/schema.sql
-  - docs/design/design-demos/master.png
-  - docs/design/design-demos/roulette.png
-  - README.md
-  - docs/design/design-demos/benchmark.png
-  - go.sum
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-  - docs/design/fallback-spec.md
-  - .dockerignore
-  - main.go
-  - internal/store/store.go
-  - internal/admin/admin.go
-  - internal/api/report.go
-  - internal/site/site.go
-  - .spectra/touched/daily-report-site.json
-  - skills/daily-brief/scripts/seen.py
-  - docker-compose.yml
-  - internal/site/styles.go
-  - CLAUDE.md
-  - docs/design/design-demos/master.html
-  - docs/design/design-demos/benchmark.html
-  - go.mod
-  - Dockerfile
-  - AGENTS.md
-  - docs/design/design-demos/roulette.html
-  - .spectra/changes/daily-report-site.started
-tests:
-  - internal/admin/admin_test.go
-  - internal/report/schema_test.go
-  - internal/site/site_test.go
-  - internal/store/store_test.go
-  - main_test.go
-  - internal/api/report_test.go
--->
-
 ---
+
 ### Requirement: Fixed industry taxonomy
 
-The skill SHALL instruct the agent to emit the industries array using exactly four fixed section names — 科技, 金融, 傳產, 房地產 — defined as a closed taxonomy in which every Taiwan-market-relevant industry news item is assigned to exactly one section. Within each section, the skill SHALL require the day's content to be split into events, each carrying its own headline and body. The skill SHALL allow a section to be omitted only after the agent has actively checked that day's sources and found no news for it; omission MUST be a verified decision, not an oversight. The skill SHALL NOT allow section names outside the four fixed names, and SHALL NOT allow a retained section to carry an empty event list.
+The guide SHALL instruct the agent to emit the industries array using exactly four fixed section names — 科技, 金融, 傳產, 房地產 — defined as a closed taxonomy in which every Taiwan-market-relevant industry news item is assigned to exactly one section. Within each section, the guide SHALL require the day's content to be split into events, each carrying its own headline and body. The guide SHALL allow a section to be omitted only after the agent has actively checked that day's sources and found no news for it; omission MUST be a verified decision, not an oversight. The guide SHALL NOT allow section names outside the four fixed names, and SHALL NOT allow a retained section to carry an empty event list.
 
 #### Scenario: News assigned to fixed sections
 
@@ -212,60 +83,22 @@ The skill SHALL instruct the agent to emit the industries array using exactly fo
 - **WHEN** the agent has checked all sources and found no 房地產 news in the collection window
 - **THEN** the 房地產 entry is omitted from industries without placeholder content
 
-
-<!-- @trace
-source: news-headlines
-updated: 2026-08-09
-code:
-  - internal/api/report.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/styles.go
-  - internal/report/schema.go
-  - internal/api/read.go
-  - main.go
-tests:
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
-  - internal/api/read_test.go
-  - internal/site/site_test.go
-  - main_test.go
--->
-
 ---
+
 ### Requirement: Analyst perspective guidance
 
-The skill SHALL instruct the agent to write industry sections from an industry analyst's perspective — explaining supply-demand shifts, pricing, and cross-company implications rather than restating headlines — and to write stock_news entries from an equity analyst's perspective — interpreting each news item against the company's situation, including fundamentals context when fresh data is available.
+The guide SHALL instruct the agent to write industry sections from an industry analyst's perspective — explaining supply-demand shifts, pricing, and cross-company implications rather than restating headlines — and to write stock_news entries from an equity analyst's perspective — interpreting each news item against the company's situation, including fundamentals context when fresh data is available.
 
 #### Scenario: Industry section interprets rather than restates
 
 - **WHEN** the agent writes an industry section covering a memory price increase
 - **THEN** the summary explains the supply-demand driver and which parts of the chain benefit or suffer, instead of only repeating the headline
 
-
-<!-- @trace
-source: daily-brief-analyst-guidance
-updated: 2026-08-09
-code:
-  - internal/api/read.go
-  - internal/report/schema.go
-  - skills/daily-brief/SKILL.md
-  - internal/api/report.go
-  - main.go
-  - internal/site/styles.go
-  - internal/site/site.go
-tests:
-  - internal/api/report_test.go
-  - main_test.go
-  - internal/site/site_test.go
-  - internal/api/read_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: Fundamentals freshness discipline
 
-The skill SHALL require that every fundamentals figure (revenue, EPS, margins, or similar) cited in the report comes from data fetched during the current run from a public source, and that each figure is labeled with its data period. The skill SHALL forbid writing fundamentals figures from model memory. When fresh fundamentals data cannot be fetched, the skill SHALL direct the agent to omit fundamentals context rather than fabricate or approximate it.
+The guide SHALL require that every fundamentals figure (revenue, EPS, margins, or similar) cited in the report comes from data fetched during the current run from a public source, and that each figure is labeled with its data period. The guide SHALL forbid writing fundamentals figures from model memory. When fresh fundamentals data cannot be fetched, the guide SHALL direct the agent to omit fundamentals context rather than fabricate or approximate it.
 
 #### Scenario: Unfetchable fundamentals omitted
 
@@ -277,30 +110,11 @@ The skill SHALL require that every fundamentals figure (revenue, EPS, margins, o
 - **WHEN** the agent cites a monthly revenue figure fetched from TWSE OpenAPI
 - **THEN** the figure appears with its data period, such as 7 月營收
 
-
-<!-- @trace
-source: daily-brief-analyst-guidance
-updated: 2026-08-09
-code:
-  - internal/api/read.go
-  - internal/report/schema.go
-  - skills/daily-brief/SKILL.md
-  - internal/api/report.go
-  - main.go
-  - internal/site/styles.go
-  - internal/site/site.go
-tests:
-  - internal/api/report_test.go
-  - main_test.go
-  - internal/site/site_test.go
-  - internal/api/read_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: Watch points in dedicated fields
 
-The skill SHALL require every stock_news entry and every industries entry to carry a non-empty watch_md field listing one or two forward-looking points the reader can verify later. Each stock-level watch point MUST tie back to the news or fundamentals cited in that entry; each industry-level watch point MUST tie back to the developments reported in that section's events. The skill SHALL forbid duplicating watch points inside event or stock summary bodies and SHALL forbid templated filler watch points that name nothing verifiable.
+The guide SHALL require every stock_news entry and every industries entry to carry a non-empty watch_md field listing one or two forward-looking points the reader can verify later. Each stock-level watch point MUST tie back to the news or fundamentals cited in that entry; each industry-level watch point MUST tie back to the developments reported in that section's events. The guide SHALL forbid duplicating watch points inside event or stock summary bodies and SHALL forbid templated filler watch points that name nothing verifiable.
 
 #### Scenario: Stock watch points populated
 
@@ -312,30 +126,11 @@ The skill SHALL require every stock_news entry and every industries entry to car
 - **WHEN** the agent writes the 科技 section covering a memory price increase
 - **THEN** the section's watch_md names verifiable follow-ups, such as the next contract-price announcement to watch
 
-
-<!-- @trace
-source: news-headlines
-updated: 2026-08-09
-code:
-  - internal/api/report.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/styles.go
-  - internal/report/schema.go
-  - internal/api/read.go
-  - main.go
-tests:
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
-  - internal/api/read_test.go
-  - internal/site/site_test.go
-  - main_test.go
--->
-
 ---
+
 ### Requirement: Source collection completeness gate
 
-The skill SHALL require the agent to record the success or failure of every configured news source during collection and to retry each failed source once. A source that remains unreachable after the retry SHALL NOT stop publication; the skill SHALL direct the agent to publish from what it did collect and to list every missing source in its run report, including the primary source when it is among the failures. Collection mechanics SHALL stay internal: the skill SHALL forbid naming the source roster, the batch structure, or any source outage inside report content such as overview_md or any summary field, so the published report never discloses coverage gaps or how collection works. Per-article citations in the sources field are unaffected. The skill SHALL NOT treat a source that returned successfully with no articles in the window as a failure.
+The guide SHALL require the agent to record the success or failure of every configured news source during collection and to retry each failed source once. A source that remains unreachable after the retry SHALL NOT stop publication; the guide SHALL direct the agent to publish from what it did collect and to list every missing source in its run report, including the primary source when it is among the failures. Collection mechanics SHALL stay internal: the guide SHALL forbid naming the source roster, the batch structure, or any source outage inside report content such as overview_md or any summary field, so the published report never discloses coverage gaps or how collection works. Per-article citations in the sources field are unaffected. The guide SHALL NOT treat a source that returned successfully with no articles in the window as a failure.
 
 #### Scenario: Primary source failure stays internal
 
@@ -347,18 +142,11 @@ The skill SHALL require the agent to record the success or failure of every conf
 - **WHEN** two secondary sources remain unreachable after one retry and cnyes succeeded
 - **THEN** the agent publishes the report and lists both missing sources in its run report, with nothing about them in report content
 
-
-<!-- @trace
-source: batched-source-collection
-updated: 2026-08-13
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: Same-day overwrite guard
 
-The skill SHALL require the agent, before POSTing a report for a date that already has a published report, to compare the new report's industries count and stock_news count against the published version. When either count is lower, the skill SHALL direct the agent to stop, explain why the new report carries less content, and wait for instruction instead of overwriting.
+The guide SHALL require the agent, before POSTing a report for a date that already has a published report, to compare the new report's industries count and stock_news count against the published version. When either count is lower, the guide SHALL direct the agent to stop, explain why the new report carries less content, and wait for instruction instead of overwriting.
 
 #### Scenario: Shrinking rerun halted
 
@@ -370,59 +158,22 @@ The skill SHALL require the agent, before POSTing a report for a date that alrea
 - **WHEN** a rerun produces counts equal to or greater than the published report for that date
 - **THEN** the agent POSTs the report without an extra confirmation step
 
-
-<!-- @trace
-source: daily-brief-analyst-guidance
-updated: 2026-08-09
-code:
-  - internal/api/read.go
-  - internal/report/schema.go
-  - skills/daily-brief/SKILL.md
-  - internal/api/report.go
-  - main.go
-  - internal/site/styles.go
-  - internal/site/site.go
-tests:
-  - internal/api/report_test.go
-  - main_test.go
-  - internal/site/site_test.go
-  - internal/api/read_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: Taiwan-market coverage boundary
 
-The skill SHALL limit calls and stock_news entries to Taiwan-listed stocks. The skill SHALL direct international market developments and foreign-listed company news into overview_md only, and SHALL NOT allow foreign-listed symbols in calls or stock_news.
+The guide SHALL limit calls and stock_news entries to Taiwan-listed stocks. The guide SHALL direct international market developments and foreign-listed company news into overview_md only, and SHALL NOT allow foreign-listed symbols in calls or stock_news.
 
 #### Scenario: Foreign stock news routed to overview
 
 - **WHEN** the day's news includes a major move in a US-listed company relevant to Taiwan supply chains
 - **THEN** the development is summarized in overview_md, and no calls or stock_news entry is created for the foreign symbol
 
-<!-- @trace
-source: daily-brief-analyst-guidance
-updated: 2026-08-09
-code:
-  - internal/api/read.go
-  - internal/report/schema.go
-  - skills/daily-brief/SKILL.md
-  - internal/api/report.go
-  - main.go
-  - internal/site/styles.go
-  - internal/site/site.go
-tests:
-  - internal/api/report_test.go
-  - main_test.go
-  - internal/site/site_test.go
-  - internal/api/read_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: One-sentence headlines
 
-The skill SHALL require every industries event and every stock_news entry to carry a non-empty one-sentence headline. Each headline MUST state what happened and why it matters, SHALL NOT be a bare topic label such as a two-word category name, and SHALL NOT restate the first sentence of the body it introduces. The skill SHALL require events within one industry section to be grouped by theme so that one event covers a related cluster of developments rather than one event per article.
+The guide SHALL require every industries event and every stock_news entry to carry a non-empty one-sentence headline. Each headline MUST state what happened and why it matters, SHALL NOT be a bare topic label such as a two-word category name, and SHALL NOT restate the first sentence of the body it introduces. The guide SHALL require events within one industry section to be grouped by theme so that one event covers a related cluster of developments rather than one event per article.
 
 #### Scenario: Industry event headline states the development
 
@@ -434,31 +185,13 @@ The skill SHALL require every industries event and every stock_news entry to car
 - **WHEN** the agent writes a stock_news entry whose summary opens by describing a capacity expansion
 - **THEN** the entry headline conveys the development and its significance in wording that is not a copy of that opening sentence
 
-<!-- @trace
-source: news-headlines
-updated: 2026-08-09
-code:
-  - internal/api/report.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/site/styles.go
-  - internal/report/schema.go
-  - internal/api/read.go
-  - main.go
-tests:
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
-  - internal/api/read_test.go
-  - internal/site/site_test.go
-  - main_test.go
--->
-
 ---
+
 ### Requirement: Pinned source endpoints
 
-The skill SHALL pin every news source to a named list endpoint verified to be reachable and to yield full article text, and SHALL NOT direct the agent to discover sources from portal homepages. The pinned set SHALL be: cnyes category list API with the six categories tw_stock, headline, tech, tw_macro, cnyeshouse, and wd_stock, whose list response already carries full article content and stock tags so no detail-page fetch is made, with wd_stock feeding overview_md only; TWSE OpenAPI datasets t187ap04_L (material information) and t187ap05_L (monthly revenue) pulled whole and filtered by the collection window; CTEE rss_web livenews RSS for the six categories policy, stock, finance, industry, house, and tech, with article bodies fetched over plain HTTP and no headless browser; CNA finance RSS; TechNews site feed; LTN business RSS; and CNBC top stories RSS at www.cnbc.com/id/100003114/device/rss/rss.html, with CNBC article bodies fetched over plain HTTP and subject to the foreign wire scope requirement. The skill SHALL NOT list WSJ Markets as a source, because its article pages sit behind a paywall and feed summaries alone cannot support judgement, and SHALL NOT list UDN as a source.
+The guide SHALL pin every news source to a named list endpoint verified to be reachable and to yield full article text, and SHALL NOT direct the agent to discover sources from portal homepages. The pinned set SHALL be: cnyes category list API with the six categories tw_stock, headline, tech, tw_macro, cnyeshouse, and wd_stock, whose list response already carries full article content and stock tags so no detail-page fetch is made, with wd_stock feeding overview_md only; TWSE OpenAPI datasets t187ap04_L (material information) and t187ap05_L (monthly revenue) pulled whole and filtered by the collection window; CTEE rss_web livenews RSS for the six categories policy, stock, finance, industry, house, and tech, with article bodies fetched over plain HTTP and no headless browser; CNA finance RSS; TechNews site feed; LTN business RSS; and CNBC top stories RSS at www.cnbc.com/id/100003114/device/rss/rss.html, with CNBC article bodies fetched over plain HTTP and subject to the foreign wire scope requirement. The guide SHALL NOT list WSJ Markets as a source, because its article pages sit behind a paywall and feed summaries alone cannot support judgement, and SHALL NOT list UDN as a source.
 
-Because CNBC sits behind Akamai and rejects tool-style User-Agent values (curl, python-requests, Claude-User and similar) with 403 Access Denied on both the feed and article pages, the skill SHALL require every CNBC request — the RSS list fetch and each article-page fetch — to carry a desktop browser User-Agent header, SHALL print one working User-Agent string and a copyable curl invocation in the batch five instructions, and SHALL direct the agent, on any CNBC 403, to first confirm the header was sent and resend with it before treating the response as a source failure. Only a 403 or connection failure that persists with the browser User-Agent SHALL count as a CNBC failure under the source collection completeness gate. The CNBC feed description carries only a one-sentence summary, so the skill SHALL NOT offer feed summaries as a substitute for fetching the article page.
+Because CNBC sits behind Akamai and rejects tool-style User-Agent values (curl, python-requests, Claude-User and similar) with 403 Access Denied on both the feed and article pages, the guide SHALL require every CNBC request — the RSS list fetch and each article-page fetch — to carry a desktop browser User-Agent header, SHALL print one working User-Agent string and a copyable curl invocation in the batch five instructions, and SHALL direct the agent, on any CNBC 403, to first confirm the header was sent and resend with it before treating the response as a source failure. Only a 403 or connection failure that persists with the browser User-Agent SHALL count as a CNBC failure under the source collection completeness gate. The CNBC feed description carries only a one-sentence summary, so the guide SHALL NOT offer feed summaries as a substitute for fetching the article page.
 
 #### Scenario: Collection uses pinned endpoints
 
@@ -473,7 +206,7 @@ Because CNBC sits behind Akamai and rejects tool-style User-Agent values (curl, 
 #### Scenario: CNBC requests carry a browser User-Agent
 
 - **WHEN** the agent fetches the CNBC top stories RSS or any CNBC article page
-- **THEN** the request carries the desktop browser User-Agent string given in the skill, the feed returns 200 with its items, and the article page returns 200 with parsable body text
+- **THEN** the request carries the desktop browser User-Agent string given in the guide, the feed returns 200 with its items, and the article page returns 200 with parsable body text
 
 ##### Example: Same endpoint, different User-Agent
 
@@ -481,25 +214,18 @@ Because CNBC sits behind Akamai and rejects tool-style User-Agent values (curl, 
 | --------------- | ------------ | --------------------- |
 | curl default (curl/8.x) | 403 Access Denied, server AkamaiGHost | 403 |
 | Claude-User/1.0 | 403 | 403 |
-| Desktop Chrome string from the skill | 200, 30 items | 200, body text extractable |
+| Desktop Chrome string from the guide | 200, 30 items | 200, body text extractable |
 
 #### Scenario: CNBC 403 is checked against the header before being recorded as failure
 
 - **WHEN** a CNBC request returns 403
 - **THEN** the agent verifies the browser User-Agent header was sent, resends with it if it was missing, and records CNBC as a failed source only when the browser-User-Agent request also fails after the one retry allowed by the completeness gate
 
-
-<!-- @trace
-source: cnbc-browser-user-agent
-updated: 2026-09-12
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: TWSE request throttling
 
-The skill SHALL require TWSE OpenAPI requests to run serially with an interval of at least five seconds between requests, and SHALL forbid parallel TWSE fetches. When TWSE responds 429 or refuses the connection, the skill SHALL direct the agent to wait sixty seconds and retry once; when the retry also fails, the agent SHALL treat TWSE as a failed secondary source under the source collection completeness gate.
+The guide SHALL require TWSE OpenAPI requests to run serially with an interval of at least five seconds between requests, and SHALL forbid parallel TWSE fetches. When TWSE responds 429 or refuses the connection, the guide SHALL direct the agent to wait sixty seconds and retry once; when the retry also fails, the agent SHALL treat TWSE as a failed secondary source under the source collection completeness gate.
 
 #### Scenario: Rate limited then recovered
 
@@ -511,19 +237,11 @@ The skill SHALL require TWSE OpenAPI requests to run serially with an interval o
 - **WHEN** a TWSE request returns 429 and the retry sixty seconds later also fails
 - **THEN** the agent proceeds without TWSE data and lists TWSE as a missing source in its run report
 
-
-<!-- @trace
-source: daily-brief-source-overhaul
-updated: 2026-08-10
-code:
-  - skills/daily-brief/SKILL.md
-  - skills/daily-brief/.env.example
--->
-
 ---
+
 ### Requirement: Two-pass ranked judgement
 
-The skill SHALL split judgement into two passes run in order: an industry pass using the industry analyst perspective, then a stock pass using the equity analyst perspective. Before writing in each pass, the skill SHALL require the agent to rank the window's news by importance using that pass's criteria, compared in listed order. Industry-pass criteria: (1) supply-demand or price shifts that already happened, (2) policy or regulatory measures about to take binding effect, (3) breadth of impact across the chain, (4) durability of the shift, (5) certainty of the information. Stock-pass criteria: (1) quantifiable earnings impact already visible, (2) factual tier — company disclosure above company outlook above analyst views above supply-chain chatter above rumor, (3) how soon the impact shows up in results, (4) irreversible change in competitive position, (5) fund-flow signals as corroboration only. The ranking SHALL govern only which events lead a section, how much depth each item receives, and ordering within summaries; the skill SHALL forbid using the ranking to cap or exclude items from the report, and the no-quota rule SHALL remain in force.
+The guide SHALL split judgement into two passes run in order: an industry pass using the industry analyst perspective, then a stock pass using the equity analyst perspective. Before writing in each pass, the guide SHALL require the agent to rank the window's news by importance using that pass's criteria, compared in listed order. Industry-pass criteria: (1) supply-demand or price shifts that already happened, (2) policy or regulatory measures about to take binding effect, (3) breadth of impact across the chain, (4) durability of the shift, (5) certainty of the information. Stock-pass criteria: (1) quantifiable earnings impact already visible, (2) factual tier — company disclosure above company outlook above analyst views above supply-chain chatter above rumor, (3) how soon the impact shows up in results, (4) irreversible change in competitive position, (5) fund-flow signals as corroboration only. The ranking SHALL govern only which events lead a section, how much depth each item receives, and ordering within summaries; the guide SHALL forbid using the ranking to cap or exclude items from the report, and the no-quota rule SHALL remain in force.
 
 #### Scenario: Ranking shapes emphasis not inclusion
 
@@ -535,19 +253,11 @@ The skill SHALL split judgement into two passes run in order: an industry pass u
 - **WHEN** a policy announcement ranks high in the industry pass but has no quantifiable earnings impact for a specific stock
 - **THEN** the industry section leads with it while the stock pass gives it lower emphasis in the affected entries
 
-
-<!-- @trace
-source: daily-brief-source-overhaul
-updated: 2026-08-10
-code:
-  - skills/daily-brief/SKILL.md
-  - skills/daily-brief/.env.example
--->
-
 ---
+
 ### Requirement: Analyst summary writing craft
 
-The skill SHALL include writing-craft rules for both judgement passes, all bound by two guards: information may come only from the collected news or data fetched during the current run, and when the required material is absent the sentence is omitted entirely rather than replaced with a placeholder such as a cannot-estimate phrase. Industry-pass craft: figures SHALL carry direction, magnitude, period, and a comparison baseline only as stated in the news; price or supply-demand shifts SHALL be attributed to the supply side or the demand side together with the durability implication, and when the news does not state the driver the summary SHALL say the driver is unclear rather than invent one — this is the only rule where missing material is stated instead of omitted; summaries SHALL describe impact distribution as who benefits, who absorbs cost, and who can pass it through; events covered in depth SHALL state whether the shift is cyclical or structural, consistent with the durability ranking criterion. Stock-pass craft: each entry SHALL open with what the news changes about the judgement, one level deeper than the entry headline, and entries with call none SHALL open with why direction cannot be judged; magnitude conversion against company financials SHALL appear only when the base figures were fetched during the current run; expectation-gap statements SHALL rest only on expectations stated in the news or on events already registered in the dedup script; promotional wording SHALL be translated into facts, with unquantified deals downgraded to stated intent; attribution SHALL name sources only as the news names them, keeping vague subjects vague with the certainty tier lowered accordingly. The skill SHALL mark its example table as illustrative, not as sentence templates to copy.
+The guide SHALL include writing-craft rules for both judgement passes, all bound by two guards: information may come only from the collected news or data fetched during the current run, and when the required material is absent the sentence is omitted entirely rather than replaced with a placeholder such as a cannot-estimate phrase. Industry-pass craft: figures SHALL carry direction, magnitude, period, and a comparison baseline only as stated in the news; price or supply-demand shifts SHALL be attributed to the supply side or the demand side together with the durability implication, and when the news does not state the driver the summary SHALL say the driver is unclear rather than invent one — this is the only rule where missing material is stated instead of omitted; summaries SHALL describe impact distribution as who benefits, who absorbs cost, and who can pass it through; events covered in depth SHALL state whether the shift is cyclical or structural, consistent with the durability ranking criterion. Stock-pass craft: each entry SHALL open with what the news changes about the judgement, one level deeper than the entry headline, and entries with call none SHALL open with why direction cannot be judged; magnitude conversion against company financials SHALL appear only when the base figures were fetched during the current run; expectation-gap statements SHALL rest only on expectations stated in the news or on events already registered in the dedup script; promotional wording SHALL be translated into facts, with unquantified deals downgraded to stated intent; attribution SHALL name sources only as the news names them, keeping vague subjects vague with the certainty tier lowered accordingly. The guide SHALL mark its example table as illustrative, not as sentence templates to copy.
 
 #### Scenario: Unstated driver acknowledged not invented
 
@@ -564,20 +274,13 @@ The skill SHALL include writing-craft rules for both judgement passes, all bound
 - **WHEN** a stock entry carries call none
 - **THEN** its summary opens by stating why the direction cannot be judged from the day's news
 
-<!-- @trace
-source: daily-brief-source-overhaul
-updated: 2026-08-10
-code:
-  - skills/daily-brief/SKILL.md
-  - skills/daily-brief/.env.example
--->
-
 ---
+
 ### Requirement: Batched collection with per-batch counts
 
-The skill SHALL split collection into five named batches, each naming the endpoints it covers and each reporting its own counts. Batch one SHALL cover the six cnyes category endpoints and report, per category, how many items were returned and how many of those were unread. Batch two SHALL cover the two TWSE datasets and report, per dataset, how many records fall inside the collection window. Batch three SHALL cover the six CTEE category feeds and report unread counts per category. Batch four SHALL cover the CNA, TechNews, and LTN feeds and report unread counts per source. Batch five SHALL cover the CNBC top stories feed and report its returned and unread counts.
+The guide SHALL split collection into five named batches, each naming the endpoints it covers and each reporting its own counts. Batch one SHALL cover the six cnyes category endpoints and report, per category, how many items were returned and how many of those were unread. Batch two SHALL cover the two TWSE datasets and report, per dataset, how many records fall inside the collection window. Batch three SHALL cover the six CTEE category feeds and report unread counts per category. Batch four SHALL cover the CNA, TechNews, and LTN feeds and report unread counts per source. Batch five SHALL cover the CNBC top stories feed and report its returned and unread counts.
 
-The five batches MAY run in parallel with one another, since they target independent hosts. Within batch two the two TWSE requests SHALL remain serial under the existing interval rule, because that limit applies per host rather than per batch. After all batches return, the skill SHALL require a consolidated table covering every source, and SHALL forbid starting judgement until that table is complete — an absent entry SHALL be treated as an unattempted source, not as an absence of news. A batch whose sources remain unreachable after the retry SHALL be recorded as failed in the consolidated table and handled under the source collection completeness gate: publication proceeds from what was collected, including when the failed batch is the primary source batch or batch five, and every missing source is listed in the run report.
+The five batches MAY run in parallel with one another, since they target independent hosts. Within batch two the two TWSE requests SHALL remain serial under the existing interval rule, because that limit applies per host rather than per batch. After all batches return, the guide SHALL require a consolidated table covering every source, and SHALL forbid starting judgement until that table is complete — an absent entry SHALL be treated as an unattempted source, not as an absence of news. A batch whose sources remain unreachable after the retry SHALL be recorded as failed in the consolidated table and handled under the source collection completeness gate: publication proceeds from what was collected, including when the failed batch is the primary source batch or batch five, and every missing source is listed in the run report.
 
 #### Scenario: Counts reported per batch
 
@@ -599,18 +302,11 @@ The five batches MAY run in parallel with one another, since they target indepen
 - **WHEN** the CNBC feed remains unreachable after one retry
 - **THEN** the agent publishes from the remaining batches and lists CNBC as a missing source in its run report
 
-
-<!-- @trace
-source: remove-wsj-source
-updated: 2026-08-15
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: Foreign wire scope and cross-language deduplication
 
-The skill SHALL restrict foreign wire content (CNBC top stories) to overview_md and to background context inside industry event summaries, and SHALL NOT allow foreign wire items to create or support calls or stock_news entries. Because the similarity check in seen.py compares article bodies within one language and cannot match a Chinese article against an English article covering the same event, the skill SHALL direct the agent to deduplicate foreign wire items by event against the Taiwanese sources collected in the same run: a foreign wire item whose event is already covered by a Taiwanese source SHALL be judged as not reported, recorded via seen.py record with decision skipped, and the Taiwanese version SHALL be the one used. Only foreign wire items covering events absent from the Taiwanese sources SHALL feed report content.
+The guide SHALL restrict foreign wire content (CNBC top stories) to overview_md and to background context inside industry event summaries, and SHALL NOT allow foreign wire items to create or support calls or stock_news entries. Because POST /api/seen/similar compares article bodies within one language and cannot match a Chinese article against an English article covering the same event, the guide SHALL direct the agent to deduplicate foreign wire items by event against the Taiwanese sources collected in the same run: a foreign wire item whose event is already covered by a Taiwanese source SHALL be judged as not reported, recorded via POST /api/seen/record with decision skipped, and the Taiwanese version SHALL be the one used. Only foreign wire items covering events absent from the Taiwanese sources SHALL feed report content.
 
 #### Scenario: Event already covered by Taiwanese media
 
@@ -622,22 +318,13 @@ The skill SHALL restrict foreign wire content (CNBC top stories) to overview_md 
 - **WHEN** a CNBC item reports an export-control detail that no Taiwanese source in the window covers
 - **THEN** the item informs overview_md or industry event background, and no calls or stock_news entry cites it
 
-
-<!-- @trace
-source: remove-wsj-source
-updated: 2026-08-15
-code:
-  - skills/daily-brief/SKILL.md
--->
-
----
 ### Requirement: Previous-close reference data
 
-The skill SHALL direct the agent to fetch previous trading day closing prices during collection, using two plain-HTTP requests: the TWSE listed-stock daily trading dataset exchangeReport/STOCK_DAY_ALL on openapi.twse.com.tw, and the TPEx mainboard daily close quotes dataset openapi/v1/tpex_mainboard_daily_close_quotes on www.tpex.org.tw. The TWSE request SHALL follow the existing TWSE request throttling requirement; the TPEx host is outside that throttle. The agent SHALL validate the trading date embedded in each response (ROC calendar format) against the expected previous trading day in Taipei time, and SHALL treat a response carrying an older date as a failed fetch rather than silently using stale prices. The agent SHALL report, per source, how many records were returned and the embedded data date.
+The guide SHALL direct the agent to fetch previous trading day closing prices during collection, using two plain-HTTP requests: the TWSE listed-stock daily trading dataset exchangeReport/STOCK_DAY_ALL on openapi.twse.com.tw, and the TPEx mainboard daily close quotes dataset openapi/v1/tpex_mainboard_daily_close_quotes on www.tpex.org.tw. The TWSE request SHALL follow the existing TWSE request throttling requirement; the TPEx host is outside that throttle. The agent SHALL validate the trading date embedded in each response (ROC calendar format) against the expected previous trading day in Taipei time, and SHALL treat a response carrying an older date as a failed fetch rather than silently using stale prices. The agent SHALL report, per source, how many records were returned and the embedded data date.
 
-The skill SHALL require the agent to save each response to a file in the working directory and to read prices only by querying those files for the symbols named in the collected news, using file-query tools such as jq or grep. The agent SHALL NOT load a full-market response into the conversation context. Date validation and count reporting SHALL likewise be satisfied by querying the saved files for the embedded date field and the record count, not by reading the responses whole.
+The guide SHALL require the agent to save each response to a file in the working directory and to read prices only by querying those files for the symbols named in the collected news, using file-query tools such as jq or grep. The agent SHALL NOT load a full-market response into the conversation context. Date validation and count reporting SHALL likewise be satisfied by querying the saved files for the embedded date field and the record count, not by reading the responses whole.
 
-Closing prices SHALL serve as judgement context — for example whether news appears already priced in, or as a magnitude baseline — and MAY be quoted in report content only with the price date stated. The skill SHALL forbid creating calls or stock_news entries from price movement alone without supporting news from the collection window. When both price fetches fail after one retry each, the agent SHALL proceed to judge and publish from news alone, list the missing price data in its run report, and disclose nothing about the gap in report content, consistent with the source collection completeness gate's internal-disclosure rule.
+Closing prices SHALL serve as judgement context — for example whether news appears already priced in, or as a magnitude baseline — and MAY be quoted in report content only with the price date stated. The guide SHALL forbid creating calls or stock_news entries from price movement alone without supporting news from the collection window. When both price fetches fail after one retry each, the agent SHALL proceed to judge and publish from news alone, list the missing price data in its run report, and disclose nothing about the gap in report content, consistent with the source collection completeness gate's internal-disclosure rule.
 
 #### Scenario: Prices fetched and dated
 
@@ -665,28 +352,21 @@ Closing prices SHALL serve as judgement context — for example whether news app
 |-----------|--------------------------|-------------|
 | TSMC news entry, price date 2026-08-14 | 昨收（8/14）1,080 元，利多公布前已連漲 | 昨收 1,080 元（無日期標示） |
 
-
-<!-- @trace
-source: previous-close-read-discipline
-updated: 2026-08-17
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: Trading-day gate before collection
 
-The skill SHALL determine, after reading `.env` and before any news collection begins, whether the current date in the Asia/Taipei timezone is a Taiwan stock market trading day. On a non-trading day the run SHALL end immediately: no collection, no judgement, no report composition, and no POST. The operator-facing run report SHALL state the closure reason (weekend, or the matching calendar entry name).
+The guide SHALL determine, after reading `.env` and before any news collection begins, whether the current date in the Asia/Taipei timezone is a Taiwan stock market trading day. On a non-trading day the run SHALL end immediately: no collection, no judgement, no report composition, and no POST. The operator-facing run report SHALL state the closure reason (weekend, or the matching calendar entry name).
 
 The determination MUST be based on verifiable rules, never on model memory or general knowledge: Saturday and Sunday SHALL always be treated as non-trading days; any other date SHALL be checked against the TWSE OpenAPI holiday schedule endpoint `https://openapi.twse.com.tw/v1/holidaySchedule/holidaySchedule`, whose entries carry dates in ROC format (e.g. `1150101` for 2026-01-01).
 
 Calendar entries MUST be classified before use: an entry whose name or description states the market is closed (「市場無交易」, 「放假」, 「補假」) marks a non-trading day; informational entries that mark trading days (「開始交易日」, 「最後交易日」) MUST NOT be treated as closures. A date with no matching closure entry on a weekday SHALL be treated as a trading day.
 
-If the holiday schedule fetch fails on a weekday, the skill SHALL retry once; if it still fails, the skill SHALL proceed with the full run as if the date were a trading day and SHALL list the endpoint failure in the operator-facing run report. The weekend rule requires no endpoint and SHALL apply regardless of endpoint availability. The closure decision and gate mechanics SHALL NOT appear in report content, consistent with the existing rule that collection mechanics stay internal.
+If the holiday schedule fetch fails on a weekday, the guide SHALL retry once; if it still fails, the guide SHALL proceed with the full run as if the date were a trading day and SHALL list the endpoint failure in the operator-facing run report. The weekend rule requires no endpoint and SHALL apply regardless of endpoint availability. The closure decision and gate mechanics SHALL NOT appear in report content, consistent with the existing rule that collection mechanics stay internal.
 
 #### Scenario: Weekend run ends without publishing
 
-- **WHEN** the skill runs on a Saturday or Sunday in the Asia/Taipei timezone
+- **WHEN** the guide runs on a Saturday or Sunday in the Asia/Taipei timezone
 - **THEN** the run ends before collection, nothing is POSTed, and the run report states the weekend closure — without calling the holiday schedule endpoint
 
 #### Scenario: Holiday matched in calendar ends the run
@@ -713,21 +393,15 @@ If the holiday schedule fetch fails on a weekday, the skill SHALL retry once; if
 - **WHEN** the holiday schedule endpoint fails twice (initial attempt plus one retry) on a weekday
 - **THEN** the run proceeds as a trading day and the endpoint failure is listed in the operator-facing run report, not in report content
 
-<!-- @trace
-source: add-trading-day-gate
-updated: 2026-08-16
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: Chip reference data
 
-The skill SHALL direct the agent to fetch previous trading day chip data (institutional investors' net buy/sell and margin trading balances) during collection, using four plain-HTTP requests: the TWSE daily institutional trading dataset rwd/zh/fund/T86 and the TWSE margin trading dataset rwd/zh/marginTrading/MI_MARGN on www.twse.com.tw, both called with the target date as a YYYYMMDD parameter and the all-stocks select type; the TPEx institutional daily trading dataset openapi/v1/tpex_3insti_daily_trading and the TPEx mainboard margin balance dataset openapi/v1/tpex_mainboard_margin_balance on www.tpex.org.tw. Requests to www.twse.com.tw SHALL follow the existing TWSE request throttling requirement as part of the same serial sequence; the TPEx host is outside that throttle.
+The guide SHALL direct the agent to fetch previous trading day chip data (institutional investors' net buy/sell and margin trading balances) during collection, using four plain-HTTP requests: the TWSE daily institutional trading dataset rwd/zh/fund/T86 and the TWSE margin trading dataset rwd/zh/marginTrading/MI_MARGN on www.twse.com.tw, both called with the target date as a YYYYMMDD parameter and the all-stocks select type; the TPEx institutional daily trading dataset openapi/v1/tpex_3insti_daily_trading and the TPEx mainboard margin balance dataset openapi/v1/tpex_mainboard_margin_balance on www.tpex.org.tw. Requests to www.twse.com.tw SHALL follow the existing TWSE request throttling requirement as part of the same serial sequence; the TPEx host is outside that throttle.
 
 The agent SHALL validate the trading date embedded in each response (ROC calendar format) against the expected previous trading day in Taipei time, and SHALL treat a response carrying an older date as a failed fetch rather than silently using stale chip data. The agent SHALL report, per source, how many records were returned and the embedded data date.
 
-The skill SHALL require the agent to save each response to a file in the working directory and to read chip values only by querying those files for the symbols named in the report's stock_news entries, using file-query tools such as jq or grep. The agent SHALL NOT load a full-market chip response into the conversation context. Date validation and count reporting SHALL likewise be satisfied by querying the saved files.
+The guide SHALL require the agent to save each response to a file in the working directory and to read chip values only by querying those files for the symbols named in the report's stock_news entries, using file-query tools such as jq or grep. The agent SHALL NOT load a full-market chip response into the conversation context. Date validation and count reporting SHALL likewise be satisfied by querying the saved files.
 
 When a chip source fails after one retry (TWSE retries under the throttling requirement's sixty-second rule), the agent SHALL proceed to judge and publish without that source's chip data, list the gap in its run report, and disclose nothing about the gap in report content, consistent with the source collection completeness gate's internal-disclosure rule.
 
@@ -751,25 +425,11 @@ When a chip source fails after one retry (TWSE retries under the throttling requ
 - **WHEN** the agent needs chip values for the stocks in stock_news
 - **THEN** the agent queries the saved response files for those symbols only, and no full-market chip payload is read into the conversation context
 
-
-<!-- @trace
-source: add-stock-chip-data
-updated: 2026-08-21
-code:
-  - internal/site/styles.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/report/schema.go
-tests:
-  - internal/site/site_test.go
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: Chip block composition
 
-For every stock_news entry whose market's chip fetches succeeded, the skill SHALL direct the agent to fill the entry's chips block from the saved files of that stock's market (TWSE files for listed stocks, TPEx files for OTC stocks) as follows: date is the validated chip data date in YYYY-MM-DD; foreign_net is the sum of the foreign-investors-excluding-foreign-dealers net column and the foreign-dealers net column, in shares; trust_net and dealer_net are the investment trust and dealer net columns, in shares; total_net is taken directly from the source's three-institutional total column, in shares, not recomputed; margin_change and short_change are the current-day balance minus the previous-day balance from the margin dataset, in trading units (lots).
+For every stock_news entry whose market's chip fetches succeeded, the guide SHALL direct the agent to fill the entry's chips block from the saved files of that stock's market (TWSE files for listed stocks, TPEx files for OTC stocks) as follows: date is the validated chip data date in YYYY-MM-DD; foreign_net is the sum of the foreign-investors-excluding-foreign-dealers net column and the foreign-dealers net column, in shares; trust_net and dealer_net are the investment trust and dealer net columns, in shares; total_net is taken directly from the source's three-institutional total column, in shares, not recomputed; margin_change and short_change are the current-day balance minus the previous-day balance from the margin dataset, in trading units (lots).
 
 When a symbol is absent from a chip file (such as a newly listed stock or an instrument without margin trading), the agent SHALL omit the chips block or the affected fields rather than filling zeros or estimates. When a market's chip fetches failed, the agent SHALL omit the chips block for that market's entries entirely.
 
@@ -794,25 +454,11 @@ When a symbol is absent from a chip file (such as a newly listed stock or an ins
 - **WHEN** both TWSE chip fetches fail after retry while TPEx fetches succeed
 - **THEN** listed-stock entries carry no chips block, OTC entries carry theirs, the report is published, and the run report lists the TWSE chip gap
 
-
-<!-- @trace
-source: add-stock-chip-data
-updated: 2026-08-21
-code:
-  - internal/site/styles.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/report/schema.go
-tests:
-  - internal/site/site_test.go
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: Chip citation discipline in judgement
 
-Chip data SHALL serve as corroboration for judgements already grounded in news from the collection window, consistent with the stock-pass ranking criterion that treats fund-flow signals as corroboration only. The skill SHALL forbid creating calls or stock_news entries from chip movement alone without supporting news. When report content cites a chip figure, the citation MUST state the chip data date. Entries whose chips block is omitted SHALL be judged from news and price context alone with no placeholder language about missing chip data.
+Chip data SHALL serve as corroboration for judgements already grounded in news from the collection window, consistent with the stock-pass ranking criterion that treats fund-flow signals as corroboration only. The guide SHALL forbid creating calls or stock_news entries from chip movement alone without supporting news. When report content cites a chip figure, the citation MUST state the chip data date. Entries whose chips block is omitted SHALL be judged from news and price context alone with no placeholder language about missing chip data.
 
 #### Scenario: No call from chip movement alone
 
@@ -824,26 +470,13 @@ Chip data SHALL serve as corroboration for judgements already grounded in news f
 - **WHEN** a stock_news summary cites institutional net buying to corroborate a bullish call
 - **THEN** the cited figure states the chip data date
 
-<!-- @trace
-source: add-stock-chip-data
-updated: 2026-08-21
-code:
-  - internal/site/styles.go
-  - internal/site/site.go
-  - skills/daily-brief/SKILL.md
-  - internal/report/schema.go
-tests:
-  - internal/site/site_test.go
-  - internal/api/report_test.go
-  - internal/report/schema_test.go
--->
-
 ---
+
 ### Requirement: Conference announcement detection
 
-The skill SHALL direct the agent, after the five collection batches complete, to scan the TWSE material-information dataset opendata/t187ap04_L and the TPEx dataset openapi/v1/mopsfin_t187ap04_O already fetched in batch 2 for entries whose 符合條款 field is 第12款, and to parse from each entry's 說明 text the conference date (the value after 1.召開法人說明會之日期：, ROC calendar converted to YYYY-MM-DD), the time (after 2.召開法人說明會之時間：, normalised to HH:MM or empty), the venue (after 3.召開法人說明會之地點：), and the summary message (after 4.法人說明會擇要訊息：). The agent SHALL report how many 第12款 entries were found per market. Conference detection SHALL NOT be restricted to the news collection time window when an announced conference remains in the future.
+The guide SHALL direct the agent, after the five collection batches complete, to scan the TWSE material-information dataset opendata/t187ap04_L and the TPEx dataset openapi/v1/mopsfin_t187ap04_O already fetched in batch 2 for entries whose 符合條款 field is 第12款, and to parse from each entry's 說明 text the conference date (the value after 1.召開法人說明會之日期：, ROC calendar converted to YYYY-MM-DD), the time (after 2.召開法人說明會之時間：, normalised to HH:MM or empty), the venue (after 3.召開法人說明會之地點：), and the summary message (after 4.法人說明會擇要訊息：). The agent SHALL report how many 第12款 entries were found per market. Conference detection SHALL NOT be restricted to the news collection time window when an announced conference remains in the future.
 
-The skill SHALL classify as invited an entry whose subject, summary, or official calendar other-notes explicitly states that the company was invited to a broker-hosted conference or explicitly states that a broker hosts that conference. The words 參加, 論壇, Summit, and Conference alone, or a broker name appearing only in the venue, SHALL NOT suffice to classify a conference as invited. When the evidence is ambiguous or contradictory, the agent SHALL inspect the original official announcement; if classification remains unresolved, it SHALL report the entry as unresolved and SHALL NOT register it. Date ranges SHALL NOT be registered as single-date conferences. Only confirmed company-held conferences whose date is on or after the current Taipei date SHALL be registered. The agent SHALL query GET /api/conferences first and SHALL NOT re-post a brief for a (symbol, held_on) pair already listed in upcoming unless the parsed date, time, or venue differs from the stored values.
+The guide SHALL classify as invited an entry whose subject, summary, or official calendar other-notes explicitly states that the company was invited to a broker-hosted conference or explicitly states that a broker hosts that conference. The words 參加, 論壇, Summit, and Conference alone, or a broker name appearing only in the venue, SHALL NOT suffice to classify a conference as invited. When the evidence is ambiguous or contradictory, the agent SHALL inspect the original official announcement; if classification remains unresolved, it SHALL report the entry as unresolved and SHALL NOT register it. Date ranges SHALL NOT be registered as single-date conferences. Only confirmed company-held conferences whose date is on or after the current Taipei date SHALL be registered. The agent SHALL query GET /api/conferences first and SHALL NOT re-post a brief for a (symbol, held_on) pair already listed in upcoming unless the parsed date, time, or venue differs from the stored values.
 
 #### Scenario: Company-held conference registered
 
@@ -876,20 +509,13 @@ The skill SHALL classify as invited an entry whose subject, summary, or official
 - **WHEN** a conference lists a broker only as venue and neither the subject, summary, nor other-notes names its organizer
 - **THEN** the agent checks the original official announcement and, if organizer evidence is still absent, reports the entry as unresolved without registering it
 
-
-<!-- @trace
-source: fix-conference-calendar-gaps
-updated: 2026-09-24
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: Conference fundamentals reference data
 
-For every conference to be registered, the skill SHALL direct the agent to fetch, during collection, the monthly revenue datasets (TWSE opendata/t187ap05_L, TPEx openapi/v1/mopsfin_t187ap05_O) and the latest quarterly income statement datasets (TWSE opendata/t187ap06_L_ci and its industry variants basi, fh, ins, bd, mim; TPEx openapi/v1/mopsfin_t187ap06_O_ci and the same variants), save each response to a file in the working directory, and read only the rows for the conference symbols with file-query tools, never loading a full-market response into the conversation context. TWSE requests SHALL join the existing TWSE throttling sequence. The agent SHALL read the revenue row's 資料年月, 當月營收, 上月營收, 去年當月營收, 當月累計營收, 去年累計營收 and the income statement row's 年度, 季別, 營業收入, 營業利益（損失）, 本期淨利（淨損）, 基本每股盈餘（元）, and fill the brief's fundamentals object from them, converting ROC year-month to YYYY-MM and labelling the quarter as cumulative (for example 2026Q2 累計) because the dataset reports year-to-date figures.
+For every conference to be registered, the guide SHALL direct the agent to fetch, during collection, the monthly revenue datasets (TWSE opendata/t187ap05_L, TPEx openapi/v1/mopsfin_t187ap05_O) and the latest quarterly income statement datasets (TWSE opendata/t187ap06_L_ci and its industry variants basi, fh, ins, bd, mim; TPEx openapi/v1/mopsfin_t187ap06_O_ci and the same variants), save each response to a file in the working directory, and read only the rows for the conference symbols with file-query tools, never loading a full-market response into the conversation context. TWSE requests SHALL join the existing TWSE throttling sequence. The agent SHALL read the revenue row's 資料年月, 當月營收, 上月營收, 去年當月營收, 當月累計營收, 去年累計營收 and the income statement row's 年度, 季別, 營業收入, 營業利益（損失）, 本期淨利（淨損）, 基本每股盈餘（元）, and fill the brief's fundamentals object from them, converting ROC year-month to YYYY-MM and labelling the quarter as cumulative (for example 2026Q2 累計) because the dataset reports year-to-date figures.
 
-The skill SHALL state that the income statement dataset carries only the latest cumulative quarter, so a comparison against the prior quarter or the prior year's quarter SHALL be written only when a fetched news article or announcement in the run states those figures, cited in sources; otherwise the quarter comparison sentence SHALL be omitted. The monthly revenue comparisons (month-over-month, year-over-year, year-to-date) SHALL always be stated with direction (變好 or 變壞) in summary_md when the revenue row exists. A symbol absent from a dataset SHALL leave the corresponding fundamentals object omitted with no placeholder, and the omission SHALL be listed in the run report.
+The guide SHALL state that the income statement dataset carries only the latest cumulative quarter, so a comparison against the prior quarter or the prior year's quarter SHALL be written only when a fetched news article or announcement in the run states those figures, cited in sources; otherwise the quarter comparison sentence SHALL be omitted. The monthly revenue comparisons (month-over-month, year-over-year, year-to-date) SHALL always be stated with direction (變好 or 變壞) in summary_md when the revenue row exists. A symbol absent from a dataset SHALL leave the corresponding fundamentals object omitted with no placeholder, and the omission SHALL be listed in the run report.
 
 #### Scenario: Fundamentals filled from saved files
 
@@ -906,44 +532,13 @@ The skill SHALL state that the income statement dataset carries only the latest 
 - **WHEN** the conference symbol has no row in the income statement files
 - **THEN** fundamentals.quarter is omitted, the revenue object is still filled if present, and the gap is listed in the run report
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
+
 ### Requirement: Pre-conference brief composition
 
-The skill SHALL embed the full conference brief JSON schema with a filled example and SHALL direct the agent to compose one brief per registered conference and POST it to /api/conference with the Bearer key. The brief's prediction SHALL be bull, bear, or none, judged from the fundamentals direction, the collected news window for that symbol, and chip data as corroboration only; when the agent cannot support a direction from fetched material, prediction SHALL be none and summary_md SHALL open with why no direction is given. summary_md SHALL open with the judgement, then state each revenue comparison with direction, the latest quarter figures with their label, and the news basis with the same citation discipline as stock_news entries (no memory-sourced numbers, every figure dated and sourced). watch_md SHALL list one to three concrete items the conference is expected to clarify. chips SHALL follow the chip block composition rules by market. The agent SHALL confirm a 200 response per posted brief and record every POST outcome in the run report.
+The guide SHALL embed the full conference brief JSON schema with a filled example and SHALL direct the agent to compose one brief per registered conference and POST it to /api/conference with the Bearer key. The brief's prediction SHALL be bull, bear, or none, judged from the fundamentals direction, the collected news window for that symbol, and chip data as corroboration only; when the agent cannot support a direction from fetched material, prediction SHALL be none and summary_md SHALL open with why no direction is given. summary_md SHALL open with the judgement, then state each revenue comparison with direction, the latest quarter figures with their label, and the news basis with the same citation discipline as stock_news entries (no memory-sourced numbers, every figure dated and sourced). watch_md SHALL list one to three concrete items the conference is expected to clarify. chips SHALL follow the chip block composition rules by market. The agent SHALL confirm a 200 response per posted brief and record every POST outcome in the run report.
 
-The skill SHALL state that a conference brief is independent of the same-day report's calls: a symbol is permitted to carry a short-term call in the report and a different conference prediction, and the brief SHALL name the horizon difference when both exist.
+The guide SHALL state that a conference brief is independent of the same-day report's calls: a symbol is permitted to carry a short-term call in the report and a different conference prediction, and the brief SHALL name the horizon difference when both exist.
 
 #### Scenario: Brief posted with direction
 
@@ -955,42 +550,11 @@ The skill SHALL state that a conference brief is independent of the same-day rep
 - **WHEN** the company has no news in the window and its revenue row is missing
 - **THEN** the agent posts a brief with prediction none whose summary_md opens with the reason no direction is given
 
-
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
+
 ### Requirement: Conference settlement after the event
 
-The skill SHALL direct the agent, on every run, to take the pending_settlement array from GET /api/conferences and, for each entry whose held_on is at least one trading day before the previous Taipei trading day, fetch that stock's daily trading history: for twse the endpoint rwd/zh/afterTrading/STOCK_DAY on www.twse.com.tw with date set to the first day of the month containing held_on and stockNo set to the symbol (joining the TWSE throttling sequence), and for tpex the endpoint www/zh-tw/afterTrading/tradingStock on www.tpex.org.tw with code set to the symbol and date set to the first day of that month; when the day after held_on falls in the next month the agent SHALL fetch that month too. The agent SHALL take pre_close as the closing price of the last trading day strictly before held_on and post_close as the closing price of the first trading day strictly after held_on, both with their dates, and POST them to /api/conference/settle. When the post-conference trading day is not yet present in the response, the entry SHALL be left pending and reported. The agent SHALL record each settlement response and outcome in the run report and SHALL NOT mention settlement mechanics in report content.
+The guide SHALL direct the agent, on every run, to take the pending_settlement array from GET /api/conferences and, for each entry whose held_on is at least one trading day before the previous Taipei trading day, fetch that stock's daily trading history: for twse the endpoint rwd/zh/afterTrading/STOCK_DAY on www.twse.com.tw with date set to the first day of the month containing held_on and stockNo set to the symbol (joining the TWSE throttling sequence), and for tpex the endpoint www/zh-tw/afterTrading/tradingStock on www.tpex.org.tw with code set to the symbol and date set to the first day of that month; when the day after held_on falls in the next month the agent SHALL fetch that month too. The agent SHALL take pre_close as the closing price of the last trading day strictly before held_on and post_close as the closing price of the first trading day strictly after held_on, both with their dates, and POST them to /api/conference/settle. When the post-conference trading day is not yet present in the response, the entry SHALL be left pending and reported. The agent SHALL record each settlement response and outcome in the run report and SHALL NOT mention settlement mechanics in report content.
 
 #### Scenario: Settlement posted two trading days after the conference
 
@@ -1009,41 +573,11 @@ The skill SHALL direct the agent, on every run, to take the pending_settlement a
 | 2026-10-16 | 10-15, 10-16, 10-19 | 2026-10-15 | 2026-10-19 | 2026-10 |
 | 2026-09-30 | 09-29, 09-30, 10-01 | 2026-09-29 | 2026-10-01 | 2026-09 and 2026-10 |
 
-<!-- @trace
-source: upcoming-conferences
-updated: 2026-09-12
-code:
-  - internal/store/migration_v2.sql
-  - internal/site/styles.go
-  - internal/seo/meta.go
-  - main.go
-  - DESIGN.md
-  - AGENTS.md
-  - internal/seo/endpoints.go
-  - internal/site/conference.go
-  - internal/api/conference.go
-  - internal/report/conference.go
-  - internal/site/site.go
-  - internal/store/conference.go
-  - internal/store/store.go
-  - skills/daily-brief/SKILL.md
-  - docs/plans/2026-09-12-main-upcoming-conferences-plan.md
-tests:
-  - internal/site/conference_test.go
-  - internal/store/conference_test.go
-  - main_test.go
-  - internal/report/conference_test.go
-  - internal/site/site_test.go
-  - internal/seo/seo_test.go
-  - internal/api/conference_test.go
-  - internal/report/skill_example_test.go
-  - internal/store/store_test.go
--->
-
 ---
+
 ### Requirement: Official conference calendar reconciliation
 
-On every trading-day run, the skill SHALL direct the agent to fetch the official MOPS 法人說明會一覽表 for listed and OTC companies for the current Taipei month and the next month. It SHALL submit the form fields step=1, firstin=1, off=1, TYPEK=sii or otc, ROC year, two-digit month, and empty co_id to the official ajax_t100sb02_1 endpoint. It SHALL parse the myTable rows and compare future single-date rows against GET /api/conferences by market, symbol, and date, deduplicating repeated official rows for the same key. Confirmed company-held rows missing from upcoming SHALL enter the existing brief composition and POST flow even when their announcements are older than the news window or absent from the fetched major-information datasets. The agent SHALL report row counts for each of the four requests, missing confirmed company-held entries, invited entries, unresolved entries, and each fetch or parse failure. A failed request or missing table SHALL NOT be interpreted as zero scheduled conferences.
+On every trading-day run, the guide SHALL direct the agent to fetch the official MOPS 法人說明會一覽表 for listed and OTC companies for the current Taipei month and the next month. It SHALL submit the form fields step=1, firstin=1, off=1, TYPEK=sii or otc, ROC year, two-digit month, and empty co_id to the official ajax_t100sb02_1 endpoint. It SHALL parse the myTable rows and compare future single-date rows against GET /api/conferences by market, symbol, and date, deduplicating repeated official rows for the same key. Confirmed company-held rows missing from upcoming SHALL enter the existing brief composition and POST flow even when their announcements are older than the news window or absent from the fetched major-information datasets. The agent SHALL report row counts for each of the four requests, missing confirmed company-held entries, invited entries, unresolved entries, and each fetch or parse failure. A failed request or missing table SHALL NOT be interpreted as zero scheduled conferences.
 
 #### Scenario: Older announcement recovered from calendar
 
@@ -1065,14 +599,8 @@ On every trading-day run, the skill SHALL direct the agent to fetch the official
 - **WHEN** one of the four calendar responses fails or lacks myTable while the other three can be parsed
 - **THEN** the agent processes the three valid responses, reports the failed market and month, and does not report reconciliation as complete
 
-<!-- @trace
-source: fix-conference-calendar-gaps
-updated: 2026-09-24
-code:
-  - skills/daily-brief/SKILL.md
--->
-
 ---
+
 ### Requirement: Evidence-based daily market outlook
 
 The daily workflow SHALL include a `market_outlook` object with `direction` and nonblank `summary_md` in every new report. It SHALL omit `trajectory_md` and `trajectory_chart` from new reports and SHALL NOT forecast intraday continuation, reversals, three-phase paths, or turn times. It SHALL assess the opening tendency and closing direction independently from verified pre-report evidence. It SHALL express a supported opening tendency in `summary_md` relative to the preceding TAIEX close, without treating night futures as the opening price. When opening evidence is insufficient, it SHALL briefly state that the opening tendency is uncertain without discarding a supported closing judgment. The `direction` field SHALL describe the report-date TAIEX close relative to the preceding trading-day close: `up`, `down`, `range` (choppy trading without a clear directional edge), or `uncertain`. When closing evidence is insufficient it SHALL choose `uncertain`, while retaining any supported opening judgment. The summary SHALL explain the basis, material countervailing signals, and decisive observable conditions without repetitive statements that the intraday path cannot be judged.
@@ -1124,50 +652,4 @@ Before composing the outlook, the workflow SHALL check the latest completed U.S.
 - **WHEN** TAIFEX data for the report-attributed night session are absent, unavailable before composition, or fail date and contract validation after one retry
 - **THEN** the workflow omits TX as evidence, completes the report using other verified inputs, and records the TX failure only in the operator report
 
-
-<!-- @trace
-source: simplify-market-outlook
-updated: 2026-10-16
-code:
-  - README.md
-  - skills/daily-brief/SKILL.md
-  - DESIGN.md
-tests:
-  - internal/site/site_test.go
-  - internal/report/skill_example_test.go
--->
-
 ---
-### Requirement: Verified TX night extraction
-
-The daily skill SHALL provide a deterministic local parser for two saved TAIFEX TX daily CSV files. It SHALL accept a report trading date and the verified preceding Taiwan trading date, select the unique highest-volume nonzero single-month TX `盤後` row attributed to the report date, and compare its closing price with the unique `一般` row for the same contract on the preceding trading date. It SHALL reject stale dates, malformed or ambiguous rows, missing matching contracts, and nonpositive or nonfinite prices. On success it SHALL emit one JSON result containing both dates, the contract, both closing prices, point and percentage changes, night volume, and `up`, `down`, or `flat` direction. On failure it SHALL exit nonzero without emitting a partial result.
-
-#### Scenario: Completed night session
-
-- **WHEN** the report date is 2026-09-24, the preceding trading date is 2026-09-23, the highest-volume report-date TX night contract is 202610 with close 47909 and volume 28947, and the preceding regular session for 202610 closed at 48336
-- **THEN** the parser emits contract 202610, `change_points: -427`, and `direction: "down"`, using no report-date regular-session price
-
-#### Scenario: Weekend and contract rollover
-
-- **WHEN** the report date follows a weekend or contract rollover and the supplied preceding trading date is several calendar days earlier
-- **THEN** the parser pairs the report-date night close only with the matching contract on the supplied preceding trading date, without subtracting one calendar day or substituting another contract
-
-#### Scenario: Unusable source rows
-
-- **WHEN** the report-date night row is absent, two eligible contracts tie for highest volume, the preceding same-contract regular row is missing, or a required date, price, volume, or CSV header is invalid
-- **THEN** the parser exits nonzero, describes the failure on stderr, and emits no JSON on stdout
-
-#### Scenario: Flat overnight move
-
-- **WHEN** the two valid same-contract closing prices are equal
-- **THEN** the parser emits zero point and percentage change with `direction: "flat"`, without forcing a bullish or bearish signal
-
-<!-- @trace
-source: add-tx-night-market-signal
-updated: 2026-09-24
-code:
-  - skills/daily-brief/scripts/tx_night.py
-  - skills/daily-brief/SKILL.md
-tests:
-  - skills/daily-brief/scripts/tx_night_test.py
--->

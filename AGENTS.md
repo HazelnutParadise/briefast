@@ -1,31 +1,6 @@
-<!-- SPECTRA:START v1.0.2 -->
+# OpenSpec
 
-# Spectra Instructions
-
-This project uses Spectra for Spec-Driven Development(SDD). Specs live in `openspec/specs/`, change proposals in `openspec/changes/`.
-
-## Use `$spectra-*` skills when:
-
-- A discussion needs structure before coding → `$spectra-discuss`
-- User wants to plan, propose, or design a change → `$spectra-propose`
-- Tasks are ready to implement → `$spectra-apply`
-- There's an in-progress change to continue → `$spectra-ingest`
-- User asks about specs or how something works → `$spectra-ask`
-- Implementation is done → `$spectra-archive`
-- Commit only files related to a specific change → `$spectra-commit`
-
-## Workflow
-
-discuss? → propose → apply ⇄ ingest → archive
-
-- `discuss` is optional — skip if requirements are clear
-- Requirements change mid-work? `ingest` → resume `apply`
-
-## Parked Changes
-
-Changes can be parked（暫存）— temporarily moved out of `openspec/changes/`. Parked changes won't appear in `spectra list` but can be found with `spectra list --parked`. To restore: `spectra unpark <name>`. The `$spectra-apply` and `$spectra-ingest` skills handle parked changes automatically.
-
-<!-- SPECTRA:END -->
+規格放在 `openspec/specs/`，變更提案放在 `openspec/changes/`，用 `openspec` CLI 管理（`openspec list`、`openspec validate <change>`、`openspec archive <change>`）。流程是 proposal → 實作 → archive，需求變了就直接改該 change 的檔案。
 
 # AGENTS.md
 
@@ -36,7 +11,7 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 每日產業與股市新聞報告網站。兩個組成部分都放在這個 repo：
 
 1. **Syralit 網站**（Go）：以固定版面顯示最新與歷史報告，提供 `/admin/` 管理 API key 與更新紀錄，透過 `POST /api/report` 接收完整報告 JSON。另有法說會會前報告：`POST /api/conference` 登記、`POST /api/conference/settle` 回填會後結算、`GET /api/conferences` 查未來與待結算場次；首頁在有未來場次時多一個「近期法說會」區塊，`/conference/?symbol=&date=` 是單場報告頁。
-2. **每日流程 skill**：`skills/daily-brief/SKILL.md` 給 Claude Cowork 執行「蒐集新聞 → 判讀多空 → 組報告 JSON → POST」流程。
+2. **每日流程說明**：`internal/guide/daily-brief.md` 嵌入程式，由 `GET /api/guide` 提供給 Claude Cowork 執行「蒐集新聞 → 判讀多空 → 組報告 JSON → POST」流程。
 
 報告版面寫死在 Go 程式，agent 只能提供內容。專案不使用 Artifact Canvas 或 Artifact DSL。
 
@@ -44,8 +19,9 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 
 - `main.go`：開啟 `data/briefast.db`，用自訂 `http.ServeMux` 掛載 API 與三個 Syralit app。
 - `internal/report/`：報告與法說會 brief 的型別與驗證，含結算命中規則與台北日期。
-- `internal/store/`：modernc.org/sqlite 資料層、啟動 migration（依序套用 schema.sql 與 migration_v2.sql）、reports／api_keys／update_log／conferences。
-- `internal/api/`：Bearer 驗證、原子 ingest、拒絕留痕、live update 通知；法說會三個端點在 conference.go。
+- `internal/store/`：modernc.org/sqlite 資料層、啟動 migration（依序套用 schema.sql、migration_v2.sql、migration_v3.sql）、reports／api_keys／update_log／conferences／seen_articles／seen_events。
+- `internal/api/`：Bearer 驗證、原子 ingest、拒絕留痕、live update 通知；法說會三個端點在 conference.go。`routes.go` 是所有 `/api` 端點的唯一路由表，`GET /api` 總覽與 `GET /api/openapi.json` 都由它產生；每個 JSON 回應經 `writeJSON` 附上 `guide` 提示。
+- `internal/guide/`：每日晨報流程說明。`internal/dedup/`：去重用的網址、文字指紋與相似度。`internal/txnight/`：期交所 TX CSV 夜盤解析。
 - `internal/site/`：首頁、歷史頁、固定五區塊與 FT 系規線版面；法說會區塊與報告頁在 conference.go。
 - `internal/admin/`：後台登入、明文 key 建立／檢視／撤銷、更新紀錄。
 
@@ -58,6 +34,7 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 
 - Import 慣例：`import sy "github.com/HazelnutParadise/syralit"`。
 - 報告更新一律走 `POST /api/report` 與有效 Bearer key，不新增未驗證的更新端點。
+- 新增或修改 `/api` 端點時只改 `internal/api/routes.go` 的路由表，並同步更新 `internal/guide/daily-brief.md` 裡用到它的段落。
 - 同日報告採全量覆寫；report upsert 與 `ingest_ok` log 必須在同一 transaction。
 - 法說會以 (symbol, held_on) 為鍵；brief 重送只覆寫 brief 欄位、不動結算欄位，結算只寫結算欄位並由伺服器依存好的 prediction 算 outcome（持平算落空、none 不計）。首頁「近期法說會」只在首頁、只在有 held_on >= 台北今天的場次時出現，歷史檢視不渲染。
 - API 每次都從 SQLite 查 key 狀態，撤銷必須立即生效；401 與 400 也要寫 update_log。
