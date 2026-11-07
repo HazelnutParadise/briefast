@@ -29,6 +29,7 @@ Briefast 的專案操作約定。任何 agent 動工前先讀完這份文件。
 
 - **`syralit-dev`**（`.claude/skills/syralit-dev/`）：寫任何 Syralit 程式碼之前必讀，依實際 v0.7.0 API 使用 rerun、widget、`sy.Handler`、`sy.Shared`、設定與 `sy.AppTest`。
 - `syralit-dev` 由 `skills-lock.json` 追蹤，來源是 `HazelnutParadise/syralit`；不要手改安裝的 `SKILL.md`。
+- `human-writing`（`.claude/skills/human-writing/`）是雲端排程撰寫晨報文字時使用的寫作規範，複製自 `TimLai666/skills` 的 `plugins/writing-and-design/skills/human-writing`（v1.13.0），沒有列入 `skills-lock.json`；要更新就從原始 repo 整個資料夾重新複製，不要手改。
 
 ## 開發約定
 

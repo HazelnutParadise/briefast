@@ -1,0 +1,4 @@
+interface:
+  display_name: "Human Writing"
+  short_description: "Default skill for natural, human-facing writing"
+  default_prompt: "Use $human-writing to write or rewrite human-facing text so it reads like a person actually meant it."
