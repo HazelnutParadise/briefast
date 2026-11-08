@@ -132,8 +132,7 @@ func TestUpdateLogsRenderNewestFirstIncludingRejections(t *testing.T) {
 	}
 }
 
-// 輸入框必須在 Form 內：Form 外的輸入框每打一個字就送回伺服器重跑，
-// 舊值慢回來會蓋掉輸入並把游標拉回前一個字。
+// 輸入框必須在 Form 內：密碼與 key 名稱只在送出時傳到伺服器，不逐字送出。
 func TestAdminInputsAreInsideForms(t *testing.T) {
 	_, app := setupAdmin(t, "secret")
 	at := sy.NewAppTest(app.Page)

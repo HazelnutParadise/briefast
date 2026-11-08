@@ -58,7 +58,7 @@ func (a *App) Page() {
 	authenticated := sy.State("briefast-admin-authenticated", false)
 	if !authenticated.Get() {
 		sy.HTML(adminStyles + `<main class="admin-shell login"><p class="eyebrow">ADMINISTRATION</p><h1>Briefast 後台登入</h1></main>`)
-		// 輸入框放進 Form：打字時不逐字送回伺服器重跑，避免慢回來的舊值蓋掉輸入、游標跳回前一個字。
+		// 輸入框放進 Form：密碼與 key 名稱只在按下按鈕時送出，打字時不逐字送到伺服器重跑。
 		sy.Form("admin-login-form", func() {
 			password := sy.PasswordInput("管理員密碼", sy.Key("admin-password"))
 			if sy.FormSubmitButton("登入", sy.Key("admin-login")) {
